@@ -26,7 +26,8 @@
 
 void
 SDL_SYS_GetPreferredLocales(char *buf, size_t buflen)
-{ @autoreleasepool {
+{
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     NSArray *languages = NSLocale.preferredLanguages;
     size_t numlangs = 0;
     size_t i;
@@ -70,7 +71,8 @@ SDL_SYS_GetPreferredLocales(char *buf, size_t buflen)
             buflen--;
         }
     }
-}}
+    [pool release];
+}
 
 /* vi: set ts=4 sw=4 expandtab: */
 

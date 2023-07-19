@@ -24,18 +24,16 @@
 
 #include "SDL_cocoavideo.h"
 
+/* This gets us MAC_OS_X_VERSION_MIN_REQUIRED... */
+#include <AvailabilityMacros.h>
+
 /* We need this for IODisplayCreateInfoDictionary and kIODisplayOnlyPreferredName */
 #include <IOKit/graphics/IOGraphicsLib.h>
 
 /* We need this for CVDisplayLinkGetNominalOutputVideoRefreshPeriod */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 #include <CoreVideo/CVBase.h>
 #include <CoreVideo/CVDisplayLink.h>
-
-/* we need this for ShowMenuBar() and HideMenuBar(). */
-#include <Carbon/Carbon.h>
-
-/* This gets us MAC_OS_X_VERSION_MIN_REQUIRED... */
-#include <AvailabilityMacros.h>
 
 #ifndef MAC_OS_X_VERSION_10_13
 #define NSAppKitVersionNumber10_12 1504
@@ -43,6 +41,10 @@
 #if (IOGRAPHICSTYPES_REV < 40)
 #define kDisplayModeNativeFlag 0x02000000
 #endif
+#endif
+
+/* we need this for ShowMenuBar() and HideMenuBar(). */
+#include <Carbon/Carbon.h>
 
 
 static void
@@ -106,7 +108,11 @@ CG_SetError(const char *prefix, CGDisplayErr result)
 }
 
 static int
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 GetDisplayModeRefreshRate(CGDisplayModeRef vidmode, CVDisplayLinkRef link)
+#else
+GetDisplayModeRefreshRate(const void *moderef, CVDisplayLinkRef link)
+#endif
 {
     int refreshRate = (int) (CGDisplayModeGetRefreshRate(vidmode) + 0.5);
 
@@ -122,7 +128,11 @@ GetDisplayModeRefreshRate(CGDisplayModeRef vidmode, CVDisplayLinkRef link)
 }
 
 static SDL_bool
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 HasValidDisplayModeFlags(CGDisplayModeRef vidmode)
+#else
+HasValidDisplayModeFlags(const void *moderef)
+#endif
 {
     uint32_t ioflags = CGDisplayModeGetIOFlags(vidmode);
 
@@ -140,7 +150,11 @@ HasValidDisplayModeFlags(CGDisplayModeRef vidmode)
 }
 
 static Uint32
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 GetDisplayModePixelFormat(CGDisplayModeRef vidmode)
+#else
+GetDisplayModePixelFormat(const void *moderef)
+#endif
 {
     /* This API is deprecated in 10.11 with no good replacement (as of 10.15). */
     CFStringRef fmt = CGDisplayModeCopyPixelEncoding(vidmode);
@@ -165,9 +179,14 @@ GetDisplayModePixelFormat(CGDisplayModeRef vidmode)
 }
 
 static SDL_bool
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 GetDisplayMode(_THIS, CGDisplayModeRef vidmode, SDL_bool vidmodeCurrent, CFArrayRef modelist, CVDisplayLinkRef link, SDL_DisplayMode *mode)
+#else
+GetDisplayMode(_THIS, const void *moderef, CVDisplayLinkRef link, SDL_DisplayMode *mode)
+#endif
 {
     SDL_DisplayModeData *data;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     bool usableForGUI = CGDisplayModeIsUsableForDesktopGUI(vidmode);
     int width = (int) CGDisplayModeGetWidth(vidmode);
     int height = (int) CGDisplayModeGetHeight(vidmode);
@@ -176,11 +195,18 @@ GetDisplayMode(_THIS, CGDisplayModeRef vidmode, SDL_bool vidmodeCurrent, CFArray
     Uint32 format = GetDisplayModePixelFormat(vidmode);
     bool interlaced = (ioflags & kDisplayModeInterlacedFlag) != 0;
     CFMutableArrayRef modes;
+#else
+    long width = 0;
+    long height = 0;
+    long bpp = 0;
+    long refreshRate = 0;
+#endif
 
     if (format == SDL_PIXELFORMAT_UNKNOWN) {
         return SDL_FALSE;
     }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     /* Don't fail the current mode based on flags because this could prevent Cocoa_InitModes from
      * succeeding if the current mode lacks certain flags (esp kDisplayModeSafeFlag). */
     if (!vidmodeCurrent && !HasValidDisplayModeFlags(vidmode)) {
@@ -189,6 +215,22 @@ GetDisplayMode(_THIS, CGDisplayModeRef vidmode, SDL_bool vidmodeCurrent, CFArray
 
     modes = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
     CFArrayAppendValue(modes, vidmode);
+#else
+    {
+        CFNumberRef number;
+        double refresh;
+        CFDictionaryRef vidmode = (CFDictionaryRef) moderef;
+        number = CFDictionaryGetValue(vidmode, kCGDisplayWidth);
+        CFNumberGetValue(number, kCFNumberLongType, &width);
+        number = CFDictionaryGetValue(vidmode, kCGDisplayHeight);
+        CFNumberGetValue(number, kCFNumberLongType, &height);
+        number = CFDictionaryGetValue(vidmode, kCGDisplayBitsPerPixel);
+        CFNumberGetValue(number, kCFNumberLongType, &bpp);
+        number = CFDictionaryGetValue(vidmode, kCGDisplayRefreshRate);
+        CFNumberGetValue(number, kCFNumberDoubleType, &refresh);
+        refreshRate = (long) (refresh + 0.5);
+    }
+#endif
 
     /* If a list of possible diplay modes is passed in, use it to filter out
      * modes that have duplicate sizes. We don't just rely on SDL's higher level
@@ -288,15 +330,21 @@ GetDisplayMode(_THIS, CGDisplayModeRef vidmode, SDL_bool vidmodeCurrent, CFArray
 
     data = (SDL_DisplayModeData *) SDL_malloc(sizeof(*data));
     if (!data) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
         CFRelease(modes);
+#endif
         return SDL_FALSE;
     }
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     data->modes = modes;
     mode->format = format;
     mode->w = width;
     mode->h = height;
     mode->refresh_rate = refreshrate;
     mode->driverdata = data;
+#else
+    data->moderef = moderef;
+#endif
     return SDL_TRUE;
 }
 
@@ -318,8 +366,8 @@ Cocoa_GetDisplayName(CGDirectDisplayID displayID)
 
 void
 Cocoa_InitModes(_THIS)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     CGDisplayErr result;
     CGDirectDisplayID *displays;
     CGDisplayCount numDisplays;
@@ -329,6 +377,7 @@ Cocoa_InitModes(_THIS)
     result = CGGetOnlineDisplayList(0, NULL, &numDisplays);
     if (result != kCGErrorSuccess) {
         CG_SetError("CGGetOnlineDisplayList()", result);
+        [pool release];
         return;
     }
     displays = SDL_small_alloc(CGDirectDisplayID, numDisplays, &isstack);
@@ -336,6 +385,7 @@ Cocoa_InitModes(_THIS)
     if (result != kCGErrorSuccess) {
         CG_SetError("CGGetOnlineDisplayList()", result);
         SDL_small_free(displays, isstack);
+        [pool release];
         return;
     }
 
@@ -345,7 +395,11 @@ Cocoa_InitModes(_THIS)
             SDL_VideoDisplay display;
             SDL_DisplayData *displaydata;
             SDL_DisplayMode mode;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
             CGDisplayModeRef moderef = NULL;
+#else
+            const void *moderef = NULL;
+#endif
             CVDisplayLinkRef link = NULL;
 
             if (pass == 0) {
@@ -362,7 +416,11 @@ Cocoa_InitModes(_THIS)
                 continue;
             }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
             moderef = CGDisplayCopyDisplayMode(displays[i]);
+#else
+            moderef = CGDisplayCurrentMode(displays[i]);
+#endif
 
             if (!moderef) {
                 continue;
@@ -370,7 +428,9 @@ Cocoa_InitModes(_THIS)
 
             displaydata = (SDL_DisplayData *) SDL_malloc(sizeof(*displaydata));
             if (!displaydata) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
                 CGDisplayModeRelease(moderef);
+#endif
                 continue;
             }
             displaydata->display = displays[i];
@@ -380,9 +440,14 @@ Cocoa_InitModes(_THIS)
             SDL_zero(display);
             /* this returns a stddup'ed string */
             display.name = (char *)Cocoa_GetDisplayName(displays[i]);
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
             if (!GetDisplayMode(_this, moderef, SDL_TRUE, NULL, link, &mode)) {
                 CVDisplayLinkRelease(link);
                 CGDisplayModeRelease(moderef);
+#else
+            if (!GetDisplayMode(_this, moderef, link, &mode)) {
+                CVDisplayLinkRelease(link);
+#endif
                 SDL_free(display.name);
                 SDL_free(displaydata);
                 continue;
@@ -399,7 +464,8 @@ Cocoa_InitModes(_THIS)
         }
     }
     SDL_small_free(displays, isstack);
-}}
+    [pool release];
+}
 
 int
 Cocoa_GetDisplayBounds(_THIS, SDL_VideoDisplay * display, SDL_Rect * rect)
@@ -448,8 +514,9 @@ Cocoa_GetDisplayUsableBounds(_THIS, SDL_VideoDisplay * display, SDL_Rect * rect)
 
 int
 Cocoa_GetDisplayDPI(_THIS, SDL_VideoDisplay * display, float * ddpi, float * hdpi, float * vdpi)
-{ @autoreleasepool
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     const float MM_IN_INCH = 25.4f;
 
     SDL_DisplayData *data = (SDL_DisplayData *) display->driverdata;
@@ -521,21 +588,26 @@ Cocoa_GetDisplayDPI(_THIS, SDL_VideoDisplay * display, float * ddpi, float * hdp
         *vdpi = (pixelHeight * MM_IN_INCH / displaySize.height);
     }
 
+    [pool release];
     return 0;
-}}
+#endif
+}
 
 void
 Cocoa_GetDisplayModes(_THIS, SDL_VideoDisplay * display)
 {
     SDL_DisplayData *data = (SDL_DisplayData *) display->driverdata;
     CVDisplayLinkRef link = NULL;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     CGDisplayModeRef desktopmoderef;
     SDL_DisplayMode desktopmode;
-    CFArrayRef modes;
+#endif
+    CFArrayRef modes = NULL;
     CFDictionaryRef dict = NULL;
 
     CVDisplayLinkCreateWithCGDisplay(data->display, &link);
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     desktopmoderef = CGDisplayCopyDisplayMode(data->display);
 
     /* CopyAllDisplayModes won't always contain the desktop display mode (if
@@ -552,6 +624,7 @@ Cocoa_GetDisplayModes(_THIS, SDL_VideoDisplay * display)
     }
 
     CGDisplayModeRelease(desktopmoderef);
+#endif
 
     /* By default, CGDisplayCopyAllDisplayModes will only get a subset of the
      * system's available modes. For example on a 15" 2016 MBP, users can
@@ -577,23 +650,36 @@ Cocoa_GetDisplayModes(_THIS, SDL_VideoDisplay * display)
     }
 #endif
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     modes = CGDisplayCopyAllDisplayModes(data->display, dict);
 
     if (dict) {
         CFRelease(dict);
     }
+#else
+    modes = CGDisplayAvailableModes(data->display);
+#endif
 
     if (modes) {
-        CFIndex i;
         const CFIndex count = CFArrayGetCount(modes);
+        CFIndex i;
 
         for (i = 0; i < count; i++) {
-            CGDisplayModeRef moderef = (CGDisplayModeRef) CFArrayGetValueAtIndex(modes, i);
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
+            CGDisplayModeRef moderef = (CGDisplayModeRef)CFArrayGetValueAtIndex(modes, i);
+#else
+            const void *moderef = CFArrayGetValueAtIndex(modes, i);
+#endif
             SDL_DisplayMode mode;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
             if (GetDisplayMode(_this, moderef, SDL_FALSE, modes, link, &mode)) {
                 if (!SDL_AddDisplayMode(display, &mode)) {
                     CFRelease(((SDL_DisplayModeData*)mode.driverdata)->modes);
+#else
+            if (GetDisplayMode(_this, moderef, modes, link, &mode)) {
+                if (!SDL_AddDisplayMode(display, &mode)) {
+#endif
                     SDL_free(mode.driverdata);
                 }
             }
@@ -612,9 +698,15 @@ SetDisplayModeForDisplay(CGDirectDisplayID display, SDL_DisplayModeData *data)
      * identical properties), some of which might not work. See GetDisplayMode.
      */
     CGError result = kCGErrorFailure;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     for (CFIndex i = 0; i < CFArrayGetCount(data->modes); i++) {
         CGDisplayModeRef moderef = (CGDisplayModeRef)CFArrayGetValueAtIndex(data->modes, i);
         result = CGDisplaySetDisplayMode(display, moderef, NULL);
+#else
+    for (CFIndex i = 0; i < CFArrayGetCount(data->modes); i++) {
+        const void *moderef = CFArrayGetValueAtIndex(data->modes, i);
+        result = CGDisplaySwitchToMode(display, moderef);
+#endif
         if (result == kCGErrorSuccess) {
             /* If this mode works, try it first next time. */
             CFArrayExchangeValuesAtIndices(data->modes, i, 0);

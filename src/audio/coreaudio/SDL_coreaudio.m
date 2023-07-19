@@ -377,7 +377,7 @@ static void interruption_end(_THIS)
 
 static BOOL update_audio_session(_THIS, SDL_bool open, SDL_bool allow_playandrecord)
 {
-    @autoreleasepool {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         AVAudioSession *session = [AVAudioSession sharedInstance];
         NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
 
@@ -512,6 +512,7 @@ static BOOL update_audio_session(_THIS, SDL_bool open, SDL_bool allow_playandrec
         }
     }
 
+    [pool release];
     return YES;
 }
 #endif
@@ -1052,22 +1053,22 @@ COREAUDIO_OpenDevice(_THIS, const char *devname)
     }
 
     /* Stop CoreAudio from doing expensive audio rate conversion */
-    @autoreleasepool {
-        AVAudioSession* session = [AVAudioSession sharedInstance];
-        [session setPreferredSampleRate:this->spec.freq error:nil];
-        this->spec.freq = (int)session.sampleRate;
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    AVAudioSession* session = [AVAudioSession sharedInstance];
+    [session setPreferredSampleRate:this->spec.freq error:nil];
+    this->spec.freq = (int)session.sampleRate;
 #if TARGET_OS_TV
-        if (iscapture) {
-            [session setPreferredInputNumberOfChannels:this->spec.channels error:nil];
-            this->spec.channels = session.preferredInputNumberOfChannels;
-        } else {
-            [session setPreferredOutputNumberOfChannels:this->spec.channels error:nil];
-            this->spec.channels = session.preferredOutputNumberOfChannels;
-        }
+    if (iscapture) {
+        [session setPreferredInputNumberOfChannels:this->spec.channels error:nil];
+        this->spec.channels = session.preferredInputNumberOfChannels;
+    } else {
+        [session setPreferredOutputNumberOfChannels:this->spec.channels error:nil];
+        this->spec.channels = session.preferredOutputNumberOfChannels;
+    }
 #else
         /* Calling setPreferredOutputNumberOfChannels seems to break audio output on iOS */
 #endif /* TARGET_OS_TV */
-    }
+    [pool release];
 #endif
 
     /* Setup a AudioStreamBasicDescription with the requested format */

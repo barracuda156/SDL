@@ -25,13 +25,27 @@
 #include "SDL_cocoavideo.h"
 #include "../../events/SDL_clipboardevents_c.h"
 
+static NSString *
+GetTextFormat(_THIS)
+{
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
+    if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_5) {
+        return NSPasteboardTypeString;
+    } else {
+#endif
+        return NSStringPboardType;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
+    }
+#endif
+}
+
 int
 Cocoa_SetClipboardText(_THIS, const char *text)
-{ @autoreleasepool
 {
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
     NSPasteboard *pasteboard;
-    NSString *format = NSPasteboardTypeString;
+    NSString *format = GetTextFormat(_this);
     NSString *nsstr = [NSString stringWithUTF8String:text];
     if (nsstr == nil) {
         return SDL_SetError("Couldn't create NSString; is your string data in UTF-8 format?");
@@ -41,15 +55,16 @@ Cocoa_SetClipboardText(_THIS, const char *text)
     data->clipboard_count = [pasteboard declareTypes:[NSArray arrayWithObject:format] owner:nil];
     [pasteboard setString:nsstr forType:format];
 
+    [pool release];
     return 0;
-}}
+}
 
 char *
 Cocoa_GetClipboardText(_THIS)
-{ @autoreleasepool
 {
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     NSPasteboard *pasteboard;
-    NSString *format = NSPasteboardTypeString;
+    NSString *format = GetTextFormat(_this);
     NSString *available;
     char *text;
 
@@ -70,8 +85,9 @@ Cocoa_GetClipboardText(_THIS)
         text = SDL_strdup("");
     }
 
+    [pool release];
     return text;
-}}
+}
 
 SDL_bool
 Cocoa_HasClipboardText(_THIS)
@@ -87,8 +103,8 @@ Cocoa_HasClipboardText(_THIS)
 
 void
 Cocoa_CheckClipboardUpdate(struct SDL_VideoData * data)
-{ @autoreleasepool
 {
+    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
     NSPasteboard *pasteboard;
     NSInteger count;
 
@@ -100,7 +116,8 @@ Cocoa_CheckClipboardUpdate(struct SDL_VideoData * data)
         }
         data->clipboard_count = count;
     }
-}}
+    [pool release];
+}
 
 #endif /* SDL_VIDEO_DRIVER_COCOA */
 

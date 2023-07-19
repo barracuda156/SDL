@@ -587,7 +587,11 @@ JoystickDeviceWasAddedCallback(void *ctx, IOReturn res, void *sender, IOHIDDevic
     device->instance_id = SDL_GetNextJoystickInstanceID();
 
     /* We have to do some storage of the io_service_t for SDL_HapticOpenFromJoystick */
+    #if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     ioservice = IOHIDDeviceGetService(ioHIDDeviceObject);
+    #else
+    ioservice = 0;
+    #endif
     if ((ioservice) && (FFIsForceFeedback(ioservice) == FF_OK)) {
         device->ffservice = ioservice;
 #if SDL_HAPTIC_IOKIT

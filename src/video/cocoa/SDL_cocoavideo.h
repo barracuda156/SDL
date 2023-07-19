@@ -58,7 +58,9 @@ DECLARE_EVENT(KeyUp);
 DECLARE_EVENT(FlagsChanged);
 #undef DECLARE_EVENT
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 static const NSEventMask NSEventMaskAny = NSAnyEventMask;
+#endif
 
 #define DECLARE_MODIFIER_FLAG(name) static const NSUInteger NSEventModifierFlag##name = NS##name##KeyMask
 DECLARE_MODIFIER_FLAG(Shift);
@@ -79,7 +81,9 @@ DECLARE_WINDOW_MASK(Miniaturizable);
 DECLARE_WINDOW_MASK(Resizable);
 DECLARE_WINDOW_MASK(TexturedBackground);
 DECLARE_WINDOW_MASK(UnifiedTitleAndToolbar);
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 DECLARE_WINDOW_MASK(FullScreen);
+#endif
 /*DECLARE_WINDOW_MASK(FullSizeContentView);*/ /* Not used, fails compile on older SDKs */
 static const unsigned int NSWindowStyleMaskUtilityWindow = NSUtilityWindowMask;
 static const unsigned int NSWindowStyleMaskDocModalWindow = NSDocModalWindowMask;

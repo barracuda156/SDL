@@ -30,7 +30,11 @@ typedef struct
 
 typedef struct
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     CFMutableArrayRef modes;
+#else
+    const void *moderef;
+#endif
 } SDL_DisplayModeData;
 
 extern void Cocoa_InitModes(_THIS);

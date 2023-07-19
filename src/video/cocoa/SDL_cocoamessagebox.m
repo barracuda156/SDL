@@ -149,8 +149,9 @@ Cocoa_ShowMessageBoxImpl(const SDL_MessageBoxData *messageboxdata, int *buttonid
 /* Display a Cocoa message box */
 int
 Cocoa_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
-{ @autoreleasepool
 {
+#ifdef __clang__
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     __block int returnValue = 0;
 
     if ([NSThread isMainThread]) {
@@ -158,8 +159,10 @@ Cocoa_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
     } else {
         dispatch_sync(dispatch_get_main_queue(), ^{ Cocoa_ShowMessageBoxImpl(messageboxdata, buttonid, &returnValue); });
     }
+    [pool release];
     return returnValue;
-}}
+#endif
+}
 
 #endif /* SDL_VIDEO_DRIVER_COCOA */
 

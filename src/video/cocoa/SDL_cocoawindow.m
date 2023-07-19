@@ -23,7 +23,7 @@
 #if SDL_VIDEO_DRIVER_COCOA
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
-# error SDL for Mac OS X must be built with a 10.7 SDK or above.
+#warning SDL for Mac OS X has been tested with a 10.7 SDK and above.
 #endif /* MAC_OS_X_VERSION_MAX_ALLOWED < 1070 */
 
 #include "SDL_syswm.h"
@@ -71,7 +71,11 @@
 @property (nonatomic) NSRect mouseConfinementRect;
 @end
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+@interface SDLWindow : NSWindow
+#else
 @interface SDLWindow : NSWindow <NSDraggingDestination>
+#endif
 /* These are needed for borderless/fullscreen windows */
 - (BOOL)canBecomeKeyWindow;
 - (BOOL)canBecomeMainWindow;
@@ -153,8 +157,8 @@
 }
 
 - (BOOL)performDragOperation:(id <NSDraggingInfo>)sender
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool;
     NSPasteboard *pasteboard = [sender draggingPasteboard];
     NSArray *types = [NSArray arrayWithObject:NSFilenamesPboardType];
     NSString *desiredType = [pasteboard availableTypeFromArray:types];
@@ -169,6 +173,7 @@
         return NO;
     }
 
+    pool = [[NSAutoreleasePool alloc] init];
     SDL_assert([desiredType isEqualToString:NSFilenamesPboardType]);
     NSArray *array = [pasteboard propertyListForType:@"NSFilenamesPboardType"];
 
@@ -184,6 +189,7 @@
 
     for (NSString *path in array) {
         NSURL *fileURL = [NSURL fileURLWithPath:path];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
         NSNumber *isAlias = nil;
 
         [fileURL getResourceValue:&isAlias forKey:NSURLIsAliasFileKey error:nil];
@@ -204,15 +210,18 @@
                 }
             }
         }
+#endif
 
         if (!SDL_SendDropFile(sdlwindow, [[fileURL path] UTF8String])) {
+            [pool release];
             return NO;
         }
     }
 
+    [pool release];
     SDL_SendDropComplete(sdlwindow);
     return YES;
-}}
+}
 
 - (BOOL)wantsPeriodicDraggingUpdates
 {
@@ -477,12 +486,14 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         [center addObserver:self selector:@selector(windowDidDeminiaturize:) name:NSWindowDidDeminiaturizeNotification object:window];
         [center addObserver:self selector:@selector(windowDidBecomeKey:) name:NSWindowDidBecomeKeyNotification object:window];
         [center addObserver:self selector:@selector(windowDidResignKey:) name:NSWindowDidResignKeyNotification object:window];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
         [center addObserver:self selector:@selector(windowDidChangeBackingProperties:) name:NSWindowDidChangeBackingPropertiesNotification object:window];
         [center addObserver:self selector:@selector(windowDidChangeScreenProfile:) name:NSWindowDidChangeScreenProfileNotification object:window];
         [center addObserver:self selector:@selector(windowWillEnterFullScreen:) name:NSWindowWillEnterFullScreenNotification object:window];
         [center addObserver:self selector:@selector(windowDidEnterFullScreen:) name:NSWindowDidEnterFullScreenNotification object:window];
         [center addObserver:self selector:@selector(windowWillExitFullScreen:) name:NSWindowWillExitFullScreenNotification object:window];
         [center addObserver:self selector:@selector(windowDidExitFullScreen:) name:NSWindowDidExitFullScreenNotification object:window];
+#endif
         [center addObserver:self selector:@selector(windowDidFailToEnterFullScreen:) name:@"NSWindowDidFailToEnterFullScreenNotification" object:window];
         [center addObserver:self selector:@selector(windowDidFailToExitFullScreen:) name:@"NSWindowDidFailToExitFullScreenNotification" object:window];
     } else {
@@ -573,7 +584,9 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
     inFullscreenTransition = YES;
 
     /* you need to be FullScreenPrimary, or toggleFullScreen doesn't work. Unset it again in windowDidExitFullScreen. */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     [nswindow setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+#endif
     [nswindow performSelectorOnMainThread: @selector(toggleFullScreen:) withObject:nswindow waitUntilDone:NO];
     return YES;
 }
@@ -609,12 +622,14 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         [center removeObserver:self name:NSWindowDidDeminiaturizeNotification object:window];
         [center removeObserver:self name:NSWindowDidBecomeKeyNotification object:window];
         [center removeObserver:self name:NSWindowDidResignKeyNotification object:window];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
         [center removeObserver:self name:NSWindowDidChangeBackingPropertiesNotification object:window];
         [center removeObserver:self name:NSWindowDidChangeScreenProfileNotification object:window];
         [center removeObserver:self name:NSWindowWillEnterFullScreenNotification object:window];
         [center removeObserver:self name:NSWindowDidEnterFullScreenNotification object:window];
         [center removeObserver:self name:NSWindowWillExitFullScreenNotification object:window];
         [center removeObserver:self name:NSWindowDidExitFullScreenNotification object:window];
+#endif
         [center removeObserver:self name:@"NSWindowDidFailToEnterFullScreenNotification" object:window];
         [center removeObserver:self name:@"NSWindowDidFailToExitFullScreenNotification" object:window];
     } else {
@@ -841,9 +856,11 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         [NSMenu setMenuBarVisible:NO];
     }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     const unsigned int newflags = [NSEvent modifierFlags] & NSEventModifierFlagCapsLock;
     _data->videodata->modifierFlags = (_data->videodata->modifierFlags & ~NSEventModifierFlagCapsLock) | newflags;
     SDL_ToggleModState(KMOD_CAPS, newflags != 0);
+#endif
 }
 
 - (void)windowDidResignKey:(NSNotification *)aNotification
@@ -870,6 +887,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
 
 - (void)windowDidChangeBackingProperties:(NSNotification *)aNotification
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     NSNumber *oldscale = [[aNotification userInfo] objectForKey:NSBackingPropertyOldScaleFactorKey];
 
     if (inFullscreenTransition) {
@@ -882,6 +900,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         _data->window->h = 0;
         [self windowDidResize:aNotification];
     }
+#endif
 }
 
 - (void)windowDidChangeScreenProfile:(NSNotification *)aNotification
@@ -1011,12 +1030,14 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         [nswindow miniaturize:nil];
     } else {
         /* Adjust the fullscreen toggle button and readd menu now that we're here. */
+#if MAC_OS_X_VERSION_MIN_REQUIRED > 1070
         if (window->flags & SDL_WINDOW_RESIZABLE) {
             /* resizable windows are Spaces-friendly: they get the "go fullscreen" toggle button on their titlebar. */
             [nswindow setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
         } else {
             [nswindow setCollectionBehavior:NSWindowCollectionBehaviorManaged];
         }
+#endif
         [NSMenu setMenuBarVisible:YES];
 
         pendingWindowOperation = PENDING_OPERATION_NONE;
@@ -1075,6 +1096,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
     }
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 -(NSApplicationPresentationOptions)window:(NSWindow *)window willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions
 {
     if ((_data->window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
@@ -1083,6 +1105,7 @@ Cocoa_UpdateClipCursor(SDL_Window * window)
         return proposedOptions;
     }
 }
+#endif
 
 /* We'll respond to key events by mostly doing nothing so we don't beep.
  * We could handle key messages here, but we lose some in the NSApp dispatch,
@@ -1361,6 +1384,7 @@ Cocoa_SendMouseButtonClicks(SDL_Mouse * mouse, NSEvent *theEvent, SDL_Window * w
          */
     }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     NSSet *touches = [theEvent touchesMatchingPhase:NSTouchPhaseAny inView:nil];
     const SDL_TouchID touchID = istrackpad ? SDL_MOUSE_TOUCHID : (SDL_TouchID)(intptr_t)[[touches anyObject] device];
     int existingTouchCount = 0;
@@ -1387,25 +1411,89 @@ Cocoa_SendMouseButtonClicks(SDL_Mouse * mouse, NSEvent *theEvent, SDL_Window * w
 
     DLog("Began Fingers: %lu .. existing: %d", (unsigned long)[touches count], existingTouchCount);
     [self handleTouches:NSTouchPhaseBegan withEvent:theEvent];
+#endif
 }
 
 - (void)touchesMovedWithEvent:(NSEvent *) theEvent
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     [self handleTouches:NSTouchPhaseMoved withEvent:theEvent];
+#endif
 }
 
 - (void)touchesEndedWithEvent:(NSEvent *) theEvent
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     [self handleTouches:NSTouchPhaseEnded withEvent:theEvent];
+#endif
 }
 
 - (void)touchesCancelledWithEvent:(NSEvent *) theEvent
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     [self handleTouches:NSTouchPhaseCancelled withEvent:theEvent];
+#endif
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
 - (void)handleTouches:(NSTouchPhase) phase withEvent:(NSEvent *) theEvent
+#else
+- (void)handleTouches:(cocoaTouchType)type withEvent:(NSEvent *)event
+#endif
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+    NSSet *touches = 0;
+    NSEnumerator *enumerator;
+    NSTouch *touch;
+
+    switch (type) {
+        case COCOA_TOUCH_DOWN:
+            touches = [event touchesMatchingPhase:NSTouchPhaseBegan inView:nil];
+            break;
+        case COCOA_TOUCH_UP:
+            touches = [event touchesMatchingPhase:NSTouchPhaseEnded inView:nil];
+            break;
+        case COCOA_TOUCH_CANCELLED:
+            touches = [event touchesMatchingPhase:NSTouchPhaseCancelled inView:nil];
+            break;
+        case COCOA_TOUCH_MOVE:
+            touches = [event touchesMatchingPhase:NSTouchPhaseMoved inView:nil];
+            break;
+    }
+
+    enumerator = [touches objectEnumerator];
+    touch = (NSTouch*)[enumerator nextObject];
+    while (touch) {
+        const SDL_TouchID touchId = (SDL_TouchID)(intptr_t)[touch device];
+        if (!SDL_GetTouch(touchId)) {
+            if (SDL_AddTouch(touchId, "") < 0) {
+                return;
+            }
+        }
+
+        const SDL_FingerID fingerId = (SDL_FingerID)(intptr_t)[touch identity];
+        float x = [touch normalizedPosition].x;
+        float y = [touch normalizedPosition].y;
+        /* Make the origin the upper left instead of the lower left */
+        y = 1.0f - y;
+
+        switch (type) {
+        case COCOA_TOUCH_DOWN:
+            SDL_SendTouch(touchId, fingerId, SDL_TRUE, x, y, 1.0f);
+            break;
+        case COCOA_TOUCH_UP:
+        case COCOA_TOUCH_CANCELLED:
+            SDL_SendTouch(touchId, fingerId, SDL_FALSE, x, y, 1.0f);
+            break;
+        case COCOA_TOUCH_MOVE:
+            SDL_SendTouchMotion(touchId, fingerId, x, y, 1.0f);
+            break;
+        }
+
+        touch = (NSTouch*)[enumerator nextObject];
+     }
+#else
     NSSet *touches = [theEvent touchesMatchingPhase:phase inView:nil];
 
     /* probably a MacBook trackpad; make this look like a synthesized event.
@@ -1474,7 +1562,9 @@ Cocoa_SendMouseButtonClicks(SDL_Mouse * mouse, NSEvent *theEvent, SDL_Window * w
             break;
         }
     }
+#endif
 }
+#endif
 
 @end
 
@@ -1574,8 +1664,8 @@ Cocoa_SendMouseButtonClicks(SDL_Mouse * mouse, NSEvent *theEvent, SDL_Window * w
 
 static int
 SetupWindowData(_THIS, SDL_Window * window, NSWindow *nswindow, NSView *nsview, SDL_bool created)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool;
     SDL_VideoData *videodata = (SDL_VideoData *) _this->driverdata;
     SDL_WindowData *data;
 
@@ -1591,6 +1681,7 @@ SetupWindowData(_THIS, SDL_Window * window, NSWindow *nswindow, NSView *nsview, 
     data->nscontexts = [[NSMutableArray alloc] init];
     data->sdlContentView = nsview;
 
+    pool = [[NSAutoreleasePool alloc] init];
     /* Create an event listener for the window */
     data->listener = [[Cocoa_WindowListener alloc] init];
 
@@ -1654,15 +1745,16 @@ SetupWindowData(_THIS, SDL_Window * window, NSWindow *nswindow, NSView *nsview, 
      */
     [nswindow setOneShot:NO];
 
+    [pool release];
     /* All done! */
     window->driverdata = data;
     return 0;
-}}
+}
 
 int
 Cocoa_CreateWindow(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_VideoData *videodata = (SDL_VideoData *) _this->driverdata;
     NSWindow *nswindow;
     SDL_VideoDisplay *display = SDL_GetDisplayForWindow(window);
@@ -1709,6 +1801,7 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
 #endif
 
     if (videodata->allow_spaces) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
         SDL_assert(floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6);
         SDL_assert([nswindow respondsToSelector:@selector(toggleFullScreen:)]);
         /* we put FULLSCREEN_DESKTOP windows in their own Space, without a toggle button or menubar, later */
@@ -1716,6 +1809,7 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
             /* resizable windows are Spaces-friendly: they get the "go fullscreen" toggle button on their titlebar. */
             [nswindow setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
         }
+#endif
     }
 
     if (window->flags & SDL_WINDOW_ALWAYS_ON_TOP) {
@@ -1755,10 +1849,12 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
 
     if (SetupWindowData(_this, window, nswindow, contentView, SDL_TRUE) < 0) {
         [nswindow release];
+        [pool release];
         return -1;
     }
 
     if (!(window->flags & SDL_WINDOW_OPENGL)) {
+        [pool release];
         return 0;
     }
     
@@ -1768,21 +1864,25 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
 #if SDL_VIDEO_OPENGL_EGL
         if (Cocoa_GLES_SetupWindow(_this, window) < 0) {
             Cocoa_DestroyWindow(_this, window);
+            [pool release];
             return -1;
         }
+        [pool release];
         return 0;
 #else
+        [pool release];
         return SDL_SetError("Could not create GLES window surface (EGL support not configured)");
 #endif /* SDL_VIDEO_OPENGL_EGL */
     }
 #endif /* SDL_VIDEO_OPENGL_ES2 */
+    [pool release];
     return 0;
-}}
+}
 
 int
 Cocoa_CreateWindowFrom(_THIS, SDL_Window * window, const void *data)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     NSView* nsview = nil;
     NSWindow *nswindow = nil;
 
@@ -1820,34 +1920,37 @@ Cocoa_CreateWindowFrom(_THIS, SDL_Window * window, const void *data)
     #endif
 
     return SetupWindowData(_this, window, nswindow, nsview, SDL_FALSE);
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowTitle(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     const char *title = window->title ? window->title : "";
     NSWindow *nswindow = ((SDL_WindowData *) window->driverdata)->nswindow;
     NSString *string = [[NSString alloc] initWithUTF8String:title];
     [nswindow setTitle:string];
     [string release];
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowIcon(_THIS, SDL_Window * window, SDL_Surface * icon)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     NSImage *nsimage = Cocoa_CreateImage(icon);
 
     if (nsimage) {
         [NSApp setApplicationIconImage:nsimage];
     }
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowPosition(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *windata = (SDL_WindowData *) window->driverdata;
     NSWindow *nswindow = windata->nswindow;
     NSRect rect;
@@ -1865,12 +1968,13 @@ Cocoa_SetWindowPosition(_THIS, SDL_Window * window)
     s_moveHack = moveHack;
 
     ScheduleContextUpdates(windata);
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowSize(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *windata = (SDL_WindowData *) window->driverdata;
     NSWindow *nswindow = windata->nswindow;
     NSRect rect;
@@ -1892,12 +1996,13 @@ Cocoa_SetWindowSize(_THIS, SDL_Window * window)
     s_moveHack = moveHack;
 
     ScheduleContextUpdates(windata);
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowMinimumSize(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *windata = (SDL_WindowData *) window->driverdata;
 
     NSSize minSize;
@@ -1905,12 +2010,13 @@ Cocoa_SetWindowMinimumSize(_THIS, SDL_Window * window)
     minSize.height = window->min_h;
 
     [windata->nswindow setContentMinSize:minSize];
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowMaximumSize(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *windata = (SDL_WindowData *) window->driverdata;
 
     NSSize maxSize;
@@ -1918,12 +2024,13 @@ Cocoa_SetWindowMaximumSize(_THIS, SDL_Window * window)
     maxSize.height = window->max_h;
 
     [windata->nswindow setContentMaxSize:maxSize];
-}}
+    [pool release];
+}
 
 void
 Cocoa_ShowWindow(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *windowData = ((SDL_WindowData *) window->driverdata);
     NSWindow *nswindow = windowData->nswindow;
 
@@ -1932,21 +2039,23 @@ Cocoa_ShowWindow(_THIS, SDL_Window * window)
         [nswindow makeKeyAndOrderFront:nil];
         [windowData->listener resumeVisibleObservation];
     }
-}}
+    [pool release];
+}
 
 void
 Cocoa_HideWindow(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     NSWindow *nswindow = ((SDL_WindowData *) window->driverdata)->nswindow;
 
     [nswindow orderOut:nil];
-}}
+    [pool release];
+}
 
 void
 Cocoa_RaiseWindow(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *windowData = ((SDL_WindowData *) window->driverdata);
     NSWindow *nswindow = windowData->nswindow;
 
@@ -1959,24 +2068,26 @@ Cocoa_RaiseWindow(_THIS, SDL_Window * window)
         [nswindow makeKeyAndOrderFront:nil];
     }
     [windowData->listener resumeVisibleObservation];
-}}
+    [pool release];
+}
 
 void
 Cocoa_MaximizeWindow(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *windata = (SDL_WindowData *) window->driverdata;
     NSWindow *nswindow = windata->nswindow;
 
     [nswindow zoom:nil];
 
     ScheduleContextUpdates(windata);
-}}
+    [pool release];
+}
 
 void
 Cocoa_MinimizeWindow(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
     NSWindow *nswindow = data->nswindow;
     if ([data->listener isInFullscreenSpaceTransition]) {
@@ -1984,12 +2095,13 @@ Cocoa_MinimizeWindow(_THIS, SDL_Window * window)
     } else {
         [nswindow miniaturize:nil];
     }
-}}
+    [pool release];
+}
 
 void
 Cocoa_RestoreWindow(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     NSWindow *nswindow = ((SDL_WindowData *) window->driverdata)->nswindow;
 
     if ([nswindow isMiniaturized]) {
@@ -1997,23 +2109,25 @@ Cocoa_RestoreWindow(_THIS, SDL_Window * window)
     } else if ((window->flags & SDL_WINDOW_RESIZABLE) && [nswindow isZoomed]) {
         [nswindow zoom:nil];
     }
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowBordered(_THIS, SDL_Window * window, SDL_bool bordered)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init]
     if (SetWindowStyle(window, GetWindowStyle(window))) {
         if (bordered) {
             Cocoa_SetWindowTitle(_this, window);  /* this got blanked out. */
         }
     }
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowResizable(_THIS, SDL_Window * window, SDL_bool resizable)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     /* Don't set this if we're in a space!
      * The window will get permanently stuck if resizable is false.
      * -flibit
@@ -2033,24 +2147,28 @@ Cocoa_SetWindowResizable(_THIS, SDL_Window * window, SDL_bool resizable)
             [nswindow setCollectionBehavior:NSWindowCollectionBehaviorManaged];
         }
     }
-}}
+    [pool release];
+}
 
 void
 Cocoa_SetWindowAlwaysOnTop(_THIS, SDL_Window * window, SDL_bool on_top)
-{ @autoreleasepool
-    {
-        NSWindow *nswindow = ((SDL_WindowData *) window->driverdata)->nswindow;
-        if (on_top) {
-            [nswindow setLevel:NSFloatingWindowLevel];
-        } else {
-            [nswindow setLevel:kCGNormalWindowLevel];
-        }
-    }}
+{
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    NSWindow *nswindow = ((SDL_WindowData *) window->driverdata)->nswindow;
+    if (on_top) {
+        [nswindow setLevel:NSFloatingWindowLevel];
+    } else {
+        [nswindow setLevel:kCGNormalWindowLevel];
+    }
+    [pool release];
+#endif
+}
 
 void
 Cocoa_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * display, SDL_bool fullscreen)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
     NSWindow *nswindow = data->nswindow;
     NSRect rect;
@@ -2133,7 +2251,8 @@ Cocoa_SetWindowFullscreen(_THIS, SDL_Window * window, SDL_VideoDisplay * display
     }
 
     ScheduleContextUpdates(data);
-}}
+    [pool release];
+}
 
 int
 Cocoa_SetWindowGammaRamp(_THIS, SDL_Window * window, const Uint16 * ramp)
@@ -2250,8 +2369,8 @@ Cocoa_SetWindowMouseGrab(_THIS, SDL_Window * window, SDL_bool grabbed)
 
 void
 Cocoa_DestroyWindow(_THIS, SDL_Window * window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
     if (data) {
@@ -2276,7 +2395,8 @@ Cocoa_DestroyWindow(_THIS, SDL_Window * window)
         SDL_free(data);
     }
     window->driverdata = NULL;
-}}
+    [pool release];
+}
 
 SDL_bool
 Cocoa_GetWindowWMInfo(_THIS, SDL_Window * window, SDL_SysWMinfo * info)
@@ -2308,8 +2428,8 @@ Cocoa_IsWindowInFullscreenSpace(SDL_Window * window)
 
 SDL_bool
 Cocoa_SetWindowFullscreenSpace(SDL_Window * window, SDL_bool state)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_bool succeeded = SDL_FALSE;
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
@@ -2347,7 +2467,8 @@ Cocoa_SetWindowFullscreenSpace(SDL_Window * window, SDL_bool state)
     data->inWindowFullscreenTransition = SDL_FALSE;
 
     return succeeded;
-}}
+    [pool release];
+}
 
 int
 Cocoa_SetWindowHitTest(SDL_Window * window, SDL_bool enabled)
@@ -2368,8 +2489,8 @@ Cocoa_AcceptDragAndDrop(SDL_Window * window, SDL_bool accept)
 
 int
 Cocoa_FlashWindow(_THIS, SDL_Window *window, SDL_FlashOperation operation)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     /* Note that this is app-wide and not window-specific! */
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
 
@@ -2391,8 +2512,9 @@ Cocoa_FlashWindow(_THIS, SDL_Window *window, SDL_FlashOperation operation)
     default:
         return SDL_Unsupported();
     }
+    [pool release];
     return 0;
-}}
+}
 
 int
 Cocoa_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)

@@ -28,9 +28,21 @@
 #include "../../events/SDL_events_c.h"
 #include "SDL_hints.h"
 
+#if !defined(UsrActivity) && defined(__LP64__)
+/*
+ * Workaround for a bug in the 10.5 SDK: By accident, OSService.h does
+ * not include Power.h at all when compiling in 64-bit mode. This has
+ * been fixed in 10.6, but for 10.5, we manually define UsrActivity
+ * to ensure compilation works.
+ */
+#define UsrActivity 1
+#endif
+
 /* This define was added in the 10.9 SDK. */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 #ifndef kIOPMAssertPreventUserIdleDisplaySleep
 #define kIOPMAssertPreventUserIdleDisplaySleep kIOPMAssertionTypePreventUserIdleDisplaySleep
+#endif
 #endif
 #ifndef NSAppKitVersionNumber10_8
 #define NSAppKitVersionNumber10_8 1187
@@ -78,6 +90,19 @@ static void Cocoa_DispatchEvent(NSEvent *theEvent)
     SDL_VideoDevice *_this = SDL_GetVideoDevice();
 
     switch ([theEvent type]) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+        case NSLeftMouseDown:
+        case NSOtherMouseDown:
+        case NSRightMouseDown:
+        case NSLeftMouseUp:
+        case NSOtherMouseUp:
+        case NSRightMouseUp:
+        case NSLeftMouseDragged:
+        case NSRightMouseDragged:
+        case NSOtherMouseDragged: /* usually middle mouse dragged */
+        case NSMouseMoved:
+        case NSScrollWheel:
+#else
         case NSEventTypeLeftMouseDown:
         case NSEventTypeOtherMouseDown:
         case NSEventTypeRightMouseDown:
@@ -89,11 +114,18 @@ static void Cocoa_DispatchEvent(NSEvent *theEvent)
         case NSEventTypeOtherMouseDragged: /* usually middle mouse dragged */
         case NSEventTypeMouseMoved:
         case NSEventTypeScrollWheel:
+#endif
             Cocoa_HandleMouseEvent(_this, theEvent);
             break;
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+        case NSKeyDown:
+        case NSKeyUp:
+        case NSFlagsChanged:
+#else
         case NSEventTypeKeyDown:
         case NSEventTypeKeyUp:
         case NSEventTypeFlagsChanged:
+#endif
             Cocoa_HandleKeyEvent(_this, theEvent);
             break;
         default:
@@ -106,11 +138,13 @@ static void Cocoa_DispatchEvent(NSEvent *theEvent)
 // processes (such as CEF) that are passed down to NSApp.
 - (void)sendEvent:(NSEvent *)theEvent
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     if (s_bShouldHandleEventsInSDLApplication) {
         Cocoa_DispatchEvent(theEvent);
     }
 
     [super sendEvent:theEvent];
+#endif
 }
 
 + (void)registerUserDefaults
@@ -131,7 +165,11 @@ static void Cocoa_DispatchEvent(NSEvent *theEvent)
 - (void)setAppleMenu:(NSMenu *)menu;
 @end
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 @interface SDLAppDelegate : NSObject <NSApplicationDelegate> {
+#else
+@interface SDLAppDelegate : NSObject {
+#endif
 @public
     BOOL seenFirstActivate;
 }
@@ -209,8 +247,10 @@ static void Cocoa_DispatchEvent(NSEvent *theEvent)
      */
     for (NSWindow *window in [NSApp orderedWindows]) {
         if (window != win && [window canBecomeKeyWindow]) {
-            if (![window isOnActiveSpace]) {
-                continue;
+            if ([window respondsToSelector:@selector(isOnActiveSpace)]) {
+                if (![window isOnActiveSpace]) {
+                    continue;
+                }
             }
             [window makeKeyAndOrderFront:self];
             return;
@@ -435,6 +475,7 @@ CreateApplicationMenus(void)
     [windowMenu addItemWithTitle:@"Zoom" action:@selector(performZoom:) keyEquivalent:@""];
     
     /* Add the fullscreen toggle menu option, if supported */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     if (floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6) {
         /* Cocoa should update the title to Enter or Exit Full Screen automatically.
          * But if not, then just fallback to Toggle Full Screen.
@@ -454,14 +495,15 @@ CreateApplicationMenus(void)
     /* Tell the application object that this is now the window menu */
     [NSApp setWindowsMenu:windowMenu];
     [windowMenu release];
+#endif
 }
 
 void
 Cocoa_RegisterApp(void)
-{ @autoreleasepool
 {
     /* This can get called more than once! Be careful what you initialize! */
 
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     if (NSApp == nil) {
         [SDLApplication sharedApplication];
         SDL_assert(NSApp != nil);
@@ -469,7 +511,9 @@ Cocoa_RegisterApp(void)
         s_bShouldHandleEventsInSDLApplication = SDL_TRUE;
 
         if (!SDL_GetHintBoolean(SDL_HINT_MAC_BACKGROUND_APP, SDL_FALSE)) {
+#if defined(MAC_OS_X_VERSION_10_6) && !defined(__ppc__)
             [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+#endif
         }
 
         /* If there aren't already menus in place, look to see if there's
@@ -513,12 +557,14 @@ Cocoa_RegisterApp(void)
             appDelegate->seenFirstActivate = YES;
         }
     }
-}}
+    [pool release];
+}
 
 int
 Cocoa_PumpEventsUntilDate(_THIS, NSDate *expiration, bool accumulate)
 {
 #if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+    NSAutoreleasePool *pool;
     /* Update activity every 30 seconds to prevent screensaver */
     SDL_VideoData *data = (SDL_VideoData *)_this->driverdata;
     if (_this->suspend_screensaver && !data->screensaver_use_iopm) {
@@ -529,16 +575,45 @@ Cocoa_PumpEventsUntilDate(_THIS, NSDate *expiration, bool accumulate)
             data->screensaver_activity = now;
         }
     }
+    pool = [[NSAutoreleasePool alloc] init];
 #endif
 
     for ( ; ; ) {
-        NSEvent *event = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:expiration inMode:NSDefaultRunLoopMode dequeue:YES ];
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+        NSEvent *event = [NSApp nextEventMatchingMask:NSAnyEventMask untilDate:[NSDate distantPast] inMode:NSDefaultRunLoopMode dequeue:YES ];
+#else
+        NSEvent *event = [NSApp nextEventMatchingMask:NSEventMaskAny untilDate:[NSDate distantPast] inMode:NSDefaultRunLoopMode dequeue:YES ];
+#endif
         if ( event == nil ) {
             return 0;
         }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
         if (!s_bShouldHandleEventsInSDLApplication) {
             Cocoa_DispatchEvent(event);
+#else
+    	switch ([event type]) {
+        case NSEventTypeLeftMouseDown:
+        case NSEventTypeOtherMouseDown:
+        case NSEventTypeRightMouseDown:
+        case NSEventTypeLeftMouseUp:
+        case NSEventTypeOtherMouseUp:
+        case NSEventTypeRightMouseUp:
+        case NSEventTypeLeftMouseDragged:
+        case NSEventTypeRightMouseDragged:
+        case NSEventTypeOtherMouseDragged: /* usually middle mouse dragged */
+        case NSEventTypeMouseMoved:
+        case NSEventTypeScrollWheel:
+            Cocoa_HandleMouseEvent(_this, event);
+            break;
+        case NSEventTypeKeyDown:
+        case NSEventTypeKeyUp:
+        case NSEventTypeFlagsChanged:
+            Cocoa_HandleKeyEvent(_this, event);
+            break;
+        default:
+            break;
+#endif
         }
 
         // Pass events down to SDLApplication to be handled in sendEvent:
@@ -547,13 +622,16 @@ Cocoa_PumpEventsUntilDate(_THIS, NSDate *expiration, bool accumulate)
             break;
         }
     }
+#if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+    [pool release];
+#endif
     return 1;
 }
 
 int
 Cocoa_WaitEventTimeout(_THIS, int timeout)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     if (timeout > 0) {
         NSDate *limitDate = [NSDate dateWithTimeIntervalSinceNow: (double) timeout / 1000.0];
         return Cocoa_PumpEventsUntilDate(_this, limitDate, false);
@@ -563,19 +641,21 @@ Cocoa_WaitEventTimeout(_THIS, int timeout)
         while (Cocoa_PumpEventsUntilDate(_this, [NSDate distantFuture], false) == 0) {
         }
     }
+    [pool release];
     return 1;
-}}
+}
 
 void
 Cocoa_PumpEvents(_THIS)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     Cocoa_PumpEventsUntilDate(_this, [NSDate distantPast], true);
-}}
+    [pool release];
+}
 
 void Cocoa_SendWakeupEvent(_THIS, SDL_Window *window)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     NSWindow *nswindow = ((SDL_WindowData *) window->driverdata)->nswindow;
 
     NSEvent* event = [NSEvent otherEventWithType: NSEventTypeApplicationDefined
@@ -589,12 +669,14 @@ void Cocoa_SendWakeupEvent(_THIS, SDL_Window *window)
                                        data2: 0];
 
     [NSApp postEvent: event atStart: YES];
-}}
+    [pool release];
+}
 
 void
 Cocoa_SuspendScreenSaver(_THIS)
-{ @autoreleasepool
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_VideoData *data = (SDL_VideoData *)_this->driverdata;
 
     if (!data->screensaver_use_iopm) {
@@ -618,7 +700,9 @@ Cocoa_SuspendScreenSaver(_THIS)
                                            NULL, NULL, NULL, 0, NULL,
                                            &data->screensaver_assertion);
     }
-}}
+    [pool release];
+#endif
+}
 
 #endif /* SDL_VIDEO_DRIVER_COCOA */
 

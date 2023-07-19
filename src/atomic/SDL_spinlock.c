@@ -28,6 +28,10 @@
 #include "SDL_mutex.h"
 #include "SDL_timer.h"
 
+#if !defined(HAVE_GCC_ATOMICS) && defined(__MACOSX__)
+#include <libkern/OSAtomic.h>
+#endif
+
 #if !defined(HAVE_GCC_ATOMICS) && defined(__SOLARIS__)
 #include <atomic.h>
 #endif

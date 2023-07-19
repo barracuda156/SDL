@@ -143,12 +143,18 @@
             NSStringFromRect(rect));
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED < 1070
+#if defined(MAC_OS_X_VERSION_10_7)
     if (![window respondsToSelector:@selector(convertRectToScreen:)]) {
+#endif
         rect.origin = [window convertBaseToScreen:rect.origin];
+#if defined(MAC_OS_X_VERSION_10_7)
     } else
 #endif
+#endif
     {
+#if defined(MAC_OS_X_VERSION_10_7)
         rect = [window convertRectToScreen:rect];
+#endif
     }
 
     return rect;
@@ -479,8 +485,8 @@ Cocoa_InitKeyboard(_THIS)
 
 void
 Cocoa_StartTextInput(_THIS)
-{ @autoreleasepool
 {
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
     SDL_Window *window = SDL_GetKeyboardFocus();
     NSWindow *nswindow = nil;
@@ -506,20 +512,22 @@ Cocoa_StartTextInput(_THIS)
         [parentView addSubview: data->fieldEdit];
         [nswindow makeFirstResponder: data->fieldEdit];
     }
-}}
+    [pool release];
+}
 
 void
 Cocoa_StopTextInput(_THIS)
-{ @autoreleasepool
 {
     SDL_VideoData *data = (SDL_VideoData *) _this->driverdata;
 
     if (data && data->fieldEdit) {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         [data->fieldEdit removeFromSuperview];
         [data->fieldEdit release];
         data->fieldEdit = nil;
+        [pool release];
     }
-}}
+}
 
 void
 Cocoa_SetTextInputRect(_THIS, SDL_Rect *rect)
@@ -561,7 +569,11 @@ Cocoa_HandleKeyEvent(_THIS, NSEvent *event)
     }
 
     switch ([event type]) {
+#if !defined(MAC_OS_X_VERSION_10_12)
+    case NSKeyDown:
+#else
     case NSEventTypeKeyDown:
+#endif
         if (![event isARepeat]) {
             /* See if we need to rebuild the keyboard layout */
             UpdateKeymap(data, SDL_TRUE);
@@ -585,10 +597,18 @@ Cocoa_HandleKeyEvent(_THIS, NSEvent *event)
 #endif
         }
         break;
+#if !defined(MAC_OS_X_VERSION_10_12)
+    case NSKeyUp:
+#else
     case NSEventTypeKeyUp:
+#endif
         SDL_SendKeyboardKey(SDL_RELEASED, code);
         break;
+#if !defined(MAC_OS_X_VERSION_10_12)
+    case NSFlagsChanged:
+#else
     case NSEventTypeFlagsChanged:
+#endif
         /* FIXME CW 2007-08-14: check if this whole mess that takes up half of this file is really necessary */
         HandleModifiers(_this, scancode, (unsigned int)[event modifierFlags]);
         break;

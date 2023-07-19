@@ -39,7 +39,11 @@ typedef enum
     PENDING_OPERATION_MINIMIZE
 } PendingWindowOperation;
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 @interface Cocoa_WindowListener : NSResponder <NSWindowDelegate> {
+#else
+@interface Cocoa_WindowListener : NSResponder {
+#endif
     SDL_WindowData *_data;
     BOOL observingVisible;
     BOOL wasCtrlLeft;
@@ -85,7 +89,9 @@ typedef enum
 -(void) windowDidEnterFullScreen:(NSNotification *) aNotification;
 -(void) windowWillExitFullScreen:(NSNotification *) aNotification;
 -(void) windowDidExitFullScreen:(NSNotification *) aNotification;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 -(NSApplicationPresentationOptions)window:(NSWindow *)window willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions;
+#endif
 
 /* See if event is in a drag area, toggle on window dragging. */
 -(BOOL) processHitTest:(NSEvent *)theEvent;
@@ -108,7 +114,17 @@ typedef enum
 -(void) touchesCancelledWithEvent:(NSEvent *) theEvent;
 
 /* Touch event handling */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 -(void) handleTouches:(NSTouchPhase) phase withEvent:(NSEvent*) theEvent;
+#else
+typedef enum {
+    COCOA_TOUCH_DOWN,
+    COCOA_TOUCH_UP,
+    COCOA_TOUCH_MOVE,
+    COCOA_TOUCH_CANCELLED
+} cocoaTouchType;
+-(void) handleTouches:(cocoaTouchType)type withEvent:(NSEvent*) event;
+#endif
 
 @end
 /* *INDENT-ON* */

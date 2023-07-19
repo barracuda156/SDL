@@ -184,10 +184,15 @@ Cocoa_VideoInit(_THIS)
         return -1;
     }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     data->allow_spaces = ((floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6) && SDL_GetHintBoolean(SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES, SDL_TRUE));
 
     /* The IOPM assertion API can disable the screensaver as of 10.7. */
     data->screensaver_use_iopm = floor(NSAppKitVersionNumber) > NSAppKitVersionNumber10_6;
+#else
+    data->allow_spaces = 0;
+    data->screensaver_use_iopm = 0;
+#endif
 
     data->swaplock = SDL_CreateMutex();
     if (!data->swaplock) {
@@ -271,10 +276,10 @@ Cocoa_CreateImage(SDL_Surface * surface)
 
 void SDL_NSLog(const char *text)
 {
-    @autoreleasepool {
-        NSString *str = [NSString stringWithUTF8String:text];
-        NSLog(@"%@", str);
-    }
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+    NSString *str = [NSString stringWithUTF8String:text];
+    NSLog(@"%@", str);
+    [pool release];
 }
 
 #endif /* SDL_VIDEO_DRIVER_COCOA */

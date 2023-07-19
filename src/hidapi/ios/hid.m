@@ -834,7 +834,8 @@ int HID_API_EXPORT hid_set_nonblocking(hid_device *dev, int nonblock)
 }
 
 struct hid_device_info  HID_API_EXPORT *hid_enumerate(unsigned short vendor_id, unsigned short product_id)
-{ @autoreleasepool {
+{
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	struct hid_device_info *root = NULL;
 	
 	if ( ( vendor_id == 0 && product_id == 0 ) ||
@@ -873,8 +874,9 @@ struct hid_device_info  HID_API_EXPORT *hid_enumerate(unsigned short vendor_id, 
 			device_info->manufacturer_string = wcsdup( L"Valve Corporation" );
 		}
 	}
+	[pool release];
 	return root;
-}}
+}
 
 int HID_API_EXPORT_CALL hid_get_manufacturer_string(hid_device *dev, wchar_t *string, size_t maxlen)
 {
