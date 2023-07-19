@@ -88,10 +88,17 @@
 
 @end
 
-
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 static void
 Cocoa_ShowMessageBoxImpl(const SDL_MessageBoxData *messageboxdata, int *buttonid, int *returnValue)
 {
+#else
+int	
+Cocoa_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
+{
+    NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+#endif
+
     Cocoa_RegisterApp();
 
     NSAlert* alert = [[[NSAlert alloc] init] autorelease];
@@ -131,7 +138,14 @@ Cocoa_ShowMessageBoxImpl(const SDL_MessageBoxData *messageboxdata, int *buttonid
 
     SDLMessageBoxPresenter* presenter = [[[SDLMessageBoxPresenter alloc] initWithParentWindow:messageboxdata->window] autorelease];
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     [presenter showAlert:alert];
+#else
+    [presenter performSelectorOnMainThread:@selector(showAlert:)
+                                withObject:alert
+                             waitUntilDone:YES];
+    int returnValue = 0;
+#endif
 
     NSInteger clicked = presenter->clicked;
     if (clicked >= NSAlertFirstButtonReturn) {
@@ -140,17 +154,23 @@ Cocoa_ShowMessageBoxImpl(const SDL_MessageBoxData *messageboxdata, int *buttonid
             clicked = messageboxdata->numbuttons - 1 - clicked;
         }
         *buttonid = buttons[clicked].buttonid;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
         *returnValue = 0;
+#endif
     } else {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
         *returnValue = SDL_SetError("Did not get a valid `clicked button' id: %ld", (long)clicked);
     }
+#else
+        returnValue = SDL_SetError("Did not get a valid `clicked button' id: %ld", (long)clicked);
+#endif
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__) && defined(__clang__)
 /* Display a Cocoa message box */
 int
 Cocoa_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
 {
-#ifdef __clang__
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     __block int returnValue = 0;
 
@@ -159,8 +179,11 @@ Cocoa_ShowMessageBox(const SDL_MessageBoxData *messageboxdata, int *buttonid)
     } else {
         dispatch_sync(dispatch_get_main_queue(), ^{ Cocoa_ShowMessageBoxImpl(messageboxdata, buttonid, &returnValue); });
     }
+#endif
     [pool release];
     return returnValue;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__) && defined(__clang__)
+    }
 #endif
 }
 
