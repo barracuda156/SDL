@@ -22,6 +22,8 @@
 
 #if SDL_VIDEO_DRIVER_COCOA
 
+#include <AvailabilityMacros.h>
+
 #include "SDL_cocoavideo.h"
 #include "../../events/SDL_clipboardevents_c.h"
 

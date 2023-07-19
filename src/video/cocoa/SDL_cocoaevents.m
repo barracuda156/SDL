@@ -261,11 +261,14 @@ static void Cocoa_DispatchEvent(NSEvent *theEvent)
      * the active Space in z-order (including the 'About' window, if it's shown)
      * and make the first one key.
      */
-    for (NSNumber *num in [NSWindow windowNumbersWithOptions:0]) {
-        NSWindow *window = [NSApp windowWithWindowNumber:[num integerValue]];
-        if (window && window != win && [window canBecomeKeyWindow]) {
-            [window makeKeyAndOrderFront:self];
-            return;
+    if ([NSWindow respondsToSelector:@selector(windowNumbersWithOptions:)]) {
+        /* Get all visible windows in the active Space, in z-order. */
+        for (NSNumber *num in [NSWindow windowNumbersWithOptions:0]) {
+            NSWindow *window = [NSApp windowWithWindowNumber:[num integerValue]];
+            if (window && window != win && [window canBecomeKeyWindow]) {
+                [window makeKeyAndOrderFront:self];
+                return;
+            }
         }
     }
 }

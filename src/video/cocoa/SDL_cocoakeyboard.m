@@ -69,6 +69,14 @@
     SDL_SendKeyboardText(str);
 }
 
+- (void)insertText:(id)insertString
+{
+    /* This method is part of NSTextInput and not NSTextInputClient, but
+     * apparently it still might be called in OS X 10.5 and can cause beeps if
+     * the implementation is missing: http://crbug.com/47890 */
+    [self insertText:insertString replacementRange:NSMakeRange(0, 0)];
+}
+
 - (void)doCommandBySelector:(SEL)myselector
 {
     /* No need to do anything since we are not using Cocoa
@@ -479,8 +487,13 @@ Cocoa_InitKeyboard(_THIS)
     SDL_SetScancodeName(SDL_SCANCODE_RALT, "Right Option");
     SDL_SetScancodeName(SDL_SCANCODE_RGUI, "Right Command");
 
-    data->modifierFlags = (unsigned int)[NSEvent modifierFlags];
-    SDL_ToggleModState(KMOD_CAPS, (data->modifierFlags & NSEventModifierFlagCapsLock) != 0);
+    /* On pre-10.6, you might have the initial capslock key state wrong. */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
+    if (floor(NSAppKitVersionNumber) >= NSAppKitVersionNumber10_6) {
+        data->modifierFlags = [NSEvent modifierFlags];
+        SDL_ToggleModState(KMOD_CAPS, (data->modifierFlags & NSAlphaShiftKeyMask) != 0);
+    }
+#endif
 }
 
 void
