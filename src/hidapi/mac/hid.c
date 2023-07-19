@@ -33,7 +33,9 @@
 
 #include "../hidapi/hidapi.h"
 
+#ifdef __clang__
 #define VALVE_USB_VID		0x28DE
+#endif
 
 /* Barrier implementation because Mac OSX doesn't have pthread_barrier.
  It also doesn't have clock_gettime(). So much for POSIX and SUSv2.
@@ -398,6 +400,7 @@ static void hid_device_removal_callback(void *context, IOReturn result,
 	}
 }
 
+#ifdef __clang__
 static CFDictionaryRef
 create_usage_match(const UInt32 page, const UInt32 usage, int *okay)
 {
@@ -444,10 +447,12 @@ create_vendor_match(const UInt32 vendor, int *okay)
 
 	return retval;
 }
+#endif
 
 /* Initialize the IOHIDManager. Return 0 for success and -1 for failure. */
 static int init_hid_manager(void)
 {
+#ifdef __clang__
 	int okay = 1;
 	const void *vals[] = {
 		(void *) create_usage_match(kHIDPage_GenericDesktop, kHIDUsage_GD_Joystick, &okay),
@@ -464,20 +469,31 @@ static int init_hid_manager(void)
 			CFRelease((CFTypeRef) vals[i]);
 		}
 	}
+#endif
 
 	/* Initialize all the HID Manager Objects */
 	hid_mgr = IOHIDManagerCreate(kCFAllocatorDefault, kIOHIDOptionsTypeNone);
 	if (hid_mgr) {
-		IOHIDManagerSetDeviceMatchingMultiple(hid_mgr, matchingArray);
+#ifndef __clang__
+		IOHIDManagerSetDeviceMatching(hid_mgr, NULL);
+#else
+        IOHIDManagerSetDeviceMatchingMultiple(hid_mgr, matchingArray);
+#endif
 		IOHIDManagerScheduleWithRunLoop(hid_mgr, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
 		IOHIDManagerRegisterDeviceRemovalCallback(hid_mgr, hid_device_removal_callback, NULL);
+#ifndef __clang__
+        return 0;
+#endif
 	}
-	
+#ifndef __clang__
+    return -1;
+#else
 	if (matchingArray != NULL) {
 		CFRelease(matchingArray);
 	}
 
 	return hid_mgr ? 0 : -1;
+#endif
 }
 
 /* Initialize the IOHIDManager if necessary. This is the public function, and
