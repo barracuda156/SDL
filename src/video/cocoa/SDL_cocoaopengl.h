@@ -49,9 +49,10 @@ struct SDL_GLDriverData
 - (void)scheduleUpdate;
 - (void)updateIfNeeded;
 - (void)setWindow:(SDL_Window *)window;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 - (SDL_Window*)window;
 - (void)explicitUpdate;
-
+#endif
 @end
 
 /* OpenGL functions */

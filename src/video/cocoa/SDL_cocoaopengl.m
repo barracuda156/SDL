@@ -63,10 +63,22 @@
 /* This should only be called on the thread on which a user is using the context. */
 - (void)updateIfNeeded
 {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
     const int value = SDL_AtomicSet(&self->dirty, 0);
+#else
+    int value = SDL_AtomicSet(&self->dirty, 0);
+#endif
     if (value > 0) {
         /* We call the real underlying update here, since -[SDLOpenGLContext update] just calls us. */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
         [self explicitUpdate];
+#else
+        if ([NSThread isMainThread]) {
+            [super update];
+        } else {
+            [super performSelectorOnMainThread:@selector(update) withObject:nil waitUntilDone:NO];
+        }
+#endif
     }
 }
 
@@ -104,13 +116,21 @@
         }
 
         if ([self view] != contentview) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
             if ([NSThread isMainThread]) {
                 [self setView:contentview];
             } else {
                 dispatch_sync(dispatch_get_main_queue(), ^{ [self setView:contentview]; });
             }
+#else
+            [self setView:contentview];
+#endif
             if (self == [NSOpenGLContext currentContext]) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
                 [self explicitUpdate];
+#else
+                [self update];
+#endif
             } else {
                 [self scheduleUpdate];
             }
@@ -118,13 +138,18 @@
     } else {
         [self clearDrawable];
         if (self == [NSOpenGLContext currentContext]) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
             [self explicitUpdate];
+#else
+            [self update];
+#endif
         } else {
             [self scheduleUpdate];
         }
     }
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 - (SDL_Window*)window
 {
     return self->window;
@@ -138,9 +163,8 @@
         dispatch_async(dispatch_get_main_queue(), ^{ [super update]; });
     }
 }
-
+#endif
 @end
-
 
 int
 Cocoa_GL_LoadLibrary(_THIS, const char *path)
@@ -372,10 +396,15 @@ Cocoa_GL_MakeCurrent(_THIS, SDL_Window * window, SDL_GLContext context)
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
     if (context) {
         SDLOpenGLContext *nscontext = (SDLOpenGLContext *)context;
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
         if ([nscontext window] != window) {
             [nscontext setWindow:window];
             [nscontext updateIfNeeded];
         }
+#else
+        [nscontext setWindow:window];
+        [nscontext updateIfNeeded];
+#endif
         [nscontext makeCurrentContext];
     } else {
         [NSOpenGLContext clearCurrentContext];
