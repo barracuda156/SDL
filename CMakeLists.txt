@@ -2942,7 +2942,7 @@ if(ANDROID)
   sdl_include_directories(PRIVATE SYSTEM "${ANDROID_NDK}/sources/android/cpufeatures")
 endif()
 
-if(APPLE)
+if(APPLE AND CMAKE_C_COMPILER_ID MATCHES "Clang")
   sdl_compile_options(PRIVATE "-fobjc-arc")
 endif()
 
