@@ -21,6 +21,10 @@
 */
 #include "../../SDL_internal.h"
 
+#if defined(__MACOSX__)
+#include <AvailabilityMacros.h>
+#endif
+
 #ifdef SDL_VIDEO_DRIVER_X11
 
 #include "SDL_x11video.h"
@@ -40,7 +44,7 @@
  */
 #define DEFAULT_OPENGL  "libGL.so"
 #elif defined(__MACOSX__)
-#define DEFAULT_OPENGL  "/opt/X11/lib/libGL.1.dylib"
+#define DEFAULT_OPENGL  "/opt/local/lib/libGL.1.dylib"
 #elif defined(__QNXNTO__)
 #define DEFAULT_OPENGL  "libGL.so.3"
 #else
@@ -470,7 +474,10 @@ static void X11_GL_InitExtensions(_THIS)
     }
 
     if (context) {
+/* FIXME: Calling glXMakeCurrent with "None" context causes a dead lock */
+#if MAC_OS_X_VERSION_MIN_REQUIRED > 1060
         _this->gl_data->glXMakeCurrent(display, None, NULL);
+#endif
         _this->gl_data->glXDestroyContext(display, context);
         if (prev_ctx && prev_drawable) {
             _this->gl_data->glXMakeCurrent(display, prev_drawable, prev_ctx);

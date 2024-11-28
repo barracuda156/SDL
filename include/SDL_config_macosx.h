@@ -182,14 +182,16 @@
 #define SDL_TIMER_UNIX  1
 
 /* Enable various video drivers */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060 && !defined(__ppc__)
 #define SDL_VIDEO_DRIVER_COCOA  1
+#endif
 #define SDL_VIDEO_DRIVER_DUMMY  1
-#undef SDL_VIDEO_DRIVER_X11
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC "/opt/X11/lib/libX11.6.dylib"
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XEXT "/opt/X11/lib/libXext.6.dylib"
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XINPUT2 "/opt/X11/lib/libXi.6.dylib"
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XRANDR "/opt/X11/lib/libXrandr.2.dylib"
-#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XSS "/opt/X11/lib/libXss.1.dylib"
+#define SDL_VIDEO_DRIVER_X11    1
+#define SDL_VIDEO_DRIVER_X11_DYNAMIC "/opt/local/lib/libX11.6.dylib"
+#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XEXT "/opt/local/lib/libXext.6.dylib"
+#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XINPUT2 "/opt/local/lib/libXi.6.dylib"
+#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XRANDR "/opt/local/lib/libXrandr.2.dylib"
+#define SDL_VIDEO_DRIVER_X11_DYNAMIC_XSS "/opt/local/lib/libXss.1.dylib"
 #define SDL_VIDEO_DRIVER_X11_XDBE 1
 #define SDL_VIDEO_DRIVER_X11_XRANDR 1
 #define SDL_VIDEO_DRIVER_X11_XSCRNSAVER 1
