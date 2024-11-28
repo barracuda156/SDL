@@ -198,7 +198,6 @@
 #define SDL_VIDEO_DRIVER_X11_XSHAPE 1
 #define SDL_VIDEO_DRIVER_X11_HAS_XKBKEYCODETOKEYSYM 1
 
-#ifdef MAC_OS_X_VERSION_10_8
 /*
  * No matter the versions targeted, this is the 10.8 or later SDK, so you have
  *  to use the external Xquartz, which is a more modern Xlib. Previous SDKs
@@ -206,7 +205,6 @@
  */
 #define SDL_VIDEO_DRIVER_X11_XINPUT2 1
 #define SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS 1
-#endif
 
 #ifndef SDL_VIDEO_RENDER_OGL
 #define SDL_VIDEO_RENDER_OGL    1
