@@ -252,7 +252,7 @@
 #define SDL_CAMERA_DRIVER_DUMMY 1
 
 /* Enable assembly routines */
-#ifdef __ppc__
+#ifdef __POWERPC__
 #define SDL_ALTIVEC_BLITTERS 1
 #endif
 
