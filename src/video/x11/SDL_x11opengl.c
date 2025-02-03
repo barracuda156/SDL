@@ -21,6 +21,10 @@
 */
 #include "SDL_internal.h"
 
+#if defined(__MACOSX__)
+#include <AvailabilityMacros.h>
+#endif
+
 #ifdef SDL_VIDEO_DRIVER_X11
 
 #include "SDL_x11video.h"
@@ -39,7 +43,7 @@
  */
 #define DEFAULT_OPENGL "libGL.so"
 #elif defined(SDL_PLATFORM_MACOS)
-#define DEFAULT_OPENGL "/opt/X11/lib/libGL.1.dylib"
+#define DEFAULT_OPENGL "/opt/local/lib/libGL.1.dylib"
 #else
 #define DEFAULT_OPENGL "libGL.so.1"
 #endif
