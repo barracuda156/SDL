@@ -33,7 +33,7 @@
 
 char *SDL_SYS_GetBasePath(void)
 {
-    @autoreleasepool {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         NSBundle *bundle = [NSBundle mainBundle];
         const char *baseType = [[[bundle infoDictionary] objectForKey:@"SDL_FILESYSTEM_BASE_DIR_TYPE"] UTF8String];
         const char *base = NULL;
@@ -59,13 +59,13 @@ char *SDL_SYS_GetBasePath(void)
             }
         }
 
+        [pool release];
         return result;
-    }
 }
 
 char *SDL_SYS_GetPrefPath(const char *org, const char *app)
 {
-    @autoreleasepool {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         char *result = NULL;
         NSArray *array;
 
@@ -124,13 +124,13 @@ char *SDL_SYS_GetPrefPath(const char *org, const char *app)
             }
         }
 
+        [pool release];
         return result;
-    }
 }
 
 char *SDL_SYS_GetUserFolder(SDL_Folder folder)
 {
-    @autoreleasepool {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 #ifdef SDL_PLATFORM_TVOS
         SDL_SetError("tvOS does not have persistent storage");
         return NULL;
@@ -232,9 +232,9 @@ append_slash:
             }
         }
 
+        [pool release];
         return result;
 #endif // SDL_PLATFORM_TVOS
-    }
 }
 
 #endif // SDL_FILESYSTEM_COCOA

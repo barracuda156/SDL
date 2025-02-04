@@ -764,6 +764,8 @@ static bool PrepareAudioQueue(SDL_AudioDevice *device)
         //  L R C LFE Ls Rs
         layout.mChannelLayoutTag = kAudioChannelLayoutTag_DVD_12;
         break;
+#if (defined(__IPHONE_OS_VERSION_MAX_ALLOWED) && __IPHONE_OS_VERSION_MAX_ALLOWED >= 130000) || \
+    (defined(MAC_OS_X_VERSION_MAX_ALLOWED) && MAC_OS_X_VERSION_MAX_ALLOWED >= 101500)
     case 7:
         if (@available(macOS 10.15, iOS 13.0, tvOS 13.0, *)) {
             // L R C LFE Cs Ls Rs
@@ -800,6 +802,7 @@ static bool PrepareAudioQueue(SDL_AudioDevice *device)
             }
         }
         break;
+#endif
     default:
         return SDL_SetError("Unsupported audio channels");
     }
