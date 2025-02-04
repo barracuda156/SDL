@@ -2386,6 +2386,13 @@ elseif(APPLE)
       endif()
     endif()
 
+    if(NOT SDL_COCOA)
+      sdl_sources(
+        "${SDL3_SOURCE_DIR}/src/core/unix/SDL_appid.c"
+        "${SDL3_SOURCE_DIR}/src/core/unix/SDL_poll.c"
+      )
+    endif()
+
     if(MACOS)
       if(SDL_COCOA_TRAY)
         sdl_glob_sources("${SDL3_SOURCE_DIR}/src/tray/cocoa/*.m")
