@@ -1145,7 +1145,11 @@ SDL_COMPILE_TIME_ASSERT(longlong_size64, sizeof(long long) == 8); /* using I64 f
 
 /** \cond */
 #ifndef DOXYGEN_SHOULD_IGNORE_THIS
+#ifdef __ppc__
+SDL_COMPILE_TIME_ASSERT(bool_size, sizeof(bool) == 4);
+#else
 SDL_COMPILE_TIME_ASSERT(bool_size, sizeof(bool) == 1);
+#endif
 SDL_COMPILE_TIME_ASSERT(uint8_size, sizeof(Uint8) == 1);
 SDL_COMPILE_TIME_ASSERT(sint8_size, sizeof(Sint8) == 1);
 SDL_COMPILE_TIME_ASSERT(uint16_size, sizeof(Uint16) == 2);
