@@ -454,10 +454,13 @@ sdl_pc_link_options("-lSDL3")
 # with large inode numbers
 check_symbol_exists("__GLIBC__" "stdlib.h" LIBC_IS_GLIBC)
 if (LIBC_IS_GLIBC AND CMAKE_SIZEOF_VOID_P EQUAL 4)
-  # Enable large file support on 32-bit glibc, so that we can access files with large inode numbers
-  sdl_compile_definitions(PRIVATE "_FILE_OFFSET_BITS=64")
   # Enable 64-bit time_t on 32-bit glibc, so that time stamps remain correct beyond January 2038
   sdl_compile_definitions(PRIVATE "_TIME_BITS=64")
+endif()
+
+if (CMAKE_SIZEOF_VOID_P EQUAL 4)
+  # Enable large file support on 32-bit glibc, so that we can access files with large inode numbers
+  sdl_compile_definitions(PRIVATE "_FILE_OFFSET_BITS=64")
 endif()
 
 check_linker_supports_version_file(HAVE_WL_VERSION_SCRIPT)
