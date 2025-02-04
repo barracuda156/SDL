@@ -385,6 +385,7 @@ set_option(SDL_ASAN                "Use AddressSanitizer to detect memory errors
 set_option(SDL_CCACHE              "Use Ccache to speed up build" OFF)
 set_option(SDL_CLANG_TIDY          "Run clang-tidy static analysis" OFF)
 set_option(SDL_GPU_DXVK            "Build SDL_GPU with DXVK support" OFF)
+set_option(SDL_COCOA_TRAY          "Cocoa Tray on macOS" ON "APPLE" OFF)
 
 set(SDL_VENDOR_INFO "" CACHE STRING "Vendor name and/or version to add to SDL_REVISION")
 
@@ -2386,7 +2387,11 @@ elseif(APPLE)
     endif()
 
     if(MACOS)
-      sdl_glob_sources("${SDL3_SOURCE_DIR}/src/tray/cocoa/*.m")
+      if(SDL_COCOA_TRAY)
+        sdl_glob_sources("${SDL3_SOURCE_DIR}/src/tray/cocoa/*.m")
+      else()
+        sdl_glob_sources("${SDL3_SOURCE_DIR}/src/tray/unix/*.c")
+      endif()
       set(HAVE_SDL_TRAY TRUE)
     endif()
   endif()

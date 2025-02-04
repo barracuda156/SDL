@@ -173,6 +173,8 @@ const char *appindicator_names[] = {
 #ifdef SDL_PLATFORM_OPENBSD
     "libayatana-appindicator3.so",
     "libappindicator3.so",
+#elif SDL_PLATFORM_APPLE
+    "libayatana-appindicator3.dylib",
 #else
     "libayatana-appindicator3.so.1",
     "libappindicator3.so.1",
@@ -183,6 +185,8 @@ const char *appindicator_names[] = {
 const char *gtk_names[] = {
 #ifdef SDL_PLATFORM_OPENBSD
     "libgtk-3.so",
+#elif SDL_PLATFORM_APPLE
+    "libgtk-3.dylib",
 #else
     "libgtk-3.so.0",
 #endif
@@ -192,6 +196,8 @@ const char *gtk_names[] = {
 const char *gdk_names[] = {
 #ifdef SDL_PLATFORM_OPENBSD
     "libgdk-3.so",
+#elif SDL_PLATFORM_APPLE
+    "libgdk-3.dylib",
 #else
     "libgdk-3.so.0",
 #endif
