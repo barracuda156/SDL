@@ -275,7 +275,7 @@ extern SDL_DECLSPEC void SDLCALL SDL_MemoryBarrierAcquireFunction(void);
  */
 #define SDL_MemoryBarrierAcquire() SDL_MemoryBarrierAcquireFunction()
 
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__ppc__))
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__))
 #define SDL_MemoryBarrierRelease()   __asm__ __volatile__ ("lwsync" : : : "memory")
 #define SDL_MemoryBarrierAcquire()   __asm__ __volatile__ ("lwsync" : : : "memory")
 #elif defined(__GNUC__) && defined(__aarch64__)
@@ -349,6 +349,8 @@ typedef void (*SDL_KernelMemoryBarrierFunc)();
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("pause\n")  /* Some assemblers can't do REP NOP, so go with PAUSE. */
 #elif (defined(__arm__) && defined(__ARM_ARCH) && __ARM_ARCH >= 7) || defined(__aarch64__)
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("yield" ::: "memory")
+#elif (defined(__POWERPC__))
+    #define SDL_CPUPauseInstruction() __asm__ __volatile__("or r27,r27,r27");
 #elif (defined(__powerpc__) || defined(__powerpc64__))
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("or 27,27,27");
 #elif (defined(__riscv) && __riscv_xlen == 64)
