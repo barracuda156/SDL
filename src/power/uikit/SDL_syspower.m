@@ -59,7 +59,7 @@ SDL_bool SDL_GetPowerInfo_UIKit(SDL_PowerState *state, int *seconds, int *percen
     *seconds = -1;
     *percent = -1;
 #else  /* TARGET_OS_TV */
-    @autoreleasepool {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         UIDevice *uidev = [UIDevice currentDevice];
         const float level = uidev.batteryLevel;
 
@@ -97,9 +97,9 @@ SDL_bool SDL_GetPowerInfo_UIKit(SDL_PowerState *state, int *seconds, int *percen
         }
 
         *percent = ((level < 0.0f) ? -1 : ((int)((level * 100) + 0.5f)));
-    }
 #endif /* TARGET_OS_TV */
 
+    [pool release];
     return SDL_TRUE; /* always the definitive answer on iOS. */
 }
 

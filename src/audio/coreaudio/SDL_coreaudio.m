@@ -31,6 +31,11 @@
 #include "SDL_coreaudio.h"
 #include "../../thread/SDL_systhread.h"
 
+#include "AvailabilityMacros.h"
+#ifndef MAC_OS_VERSION_12_0
+#define kAudioObjectPropertyElementMain kAudioObjectPropertyElementMaster
+#endif
+
 #define DEBUG_COREAUDIO 0
 
 #if DEBUG_COREAUDIO
@@ -371,7 +376,7 @@ static void interruption_end(_THIS)
 
 static BOOL update_audio_session(_THIS, SDL_bool open, SDL_bool allow_playandrecord)
 {
-    @autoreleasepool {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         AVAudioSession *session = [AVAudioSession sharedInstance];
         NSNotificationCenter *center = [NSNotificationCenter defaultCenter];
 
@@ -505,8 +510,8 @@ static BOOL update_audio_session(_THIS, SDL_bool open, SDL_bool allow_playandrec
                 listener.device = NULL;
             }
         }
-    }
 
+    [pool release];
     return YES;
 }
 #endif
@@ -1081,7 +1086,7 @@ static int COREAUDIO_OpenDevice(_THIS, const char *devname)
     }
 
     /* Stop CoreAudio from doing expensive audio rate conversion */
-    @autoreleasepool {
+        NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
         AVAudioSession *session = [AVAudioSession sharedInstance];
         [session setPreferredSampleRate:this->spec.freq error:nil];
         this->spec.freq = (int)session.sampleRate;
@@ -1096,7 +1101,7 @@ static int COREAUDIO_OpenDevice(_THIS, const char *devname)
 #else
         /* Calling setPreferredOutputNumberOfChannels seems to break audio output on iOS */
 #endif /* TARGET_OS_TV */
-    }
+        [pool release];
 #endif
 
     /* Setup a AudioStreamBasicDescription with the requested format */

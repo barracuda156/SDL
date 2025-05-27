@@ -49,7 +49,7 @@
 #define HAVE_STDIO_H    1
 #define HAVE_STRING_H   1
 #define HAVE_SYS_TYPES_H    1
-#define HAVE_LIBUNWIND_H    1
+#define HAVE_LIBUNWIND_H    0
 
 /* C library functions */
 #define HAVE_DLOPEN 1
@@ -270,7 +270,7 @@
 #define SDL_FILESYSTEM_COCOA   1
 
 /* Enable assembly routines */
-#ifdef __ppc__
+#ifdef __POWERPC__
 #define SDL_ALTIVEC_BLITTERS    1
 #endif
 

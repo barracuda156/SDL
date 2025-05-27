@@ -174,7 +174,7 @@ extern __inline void SDL_CompilerBarrier(void);
 extern DECLSPEC void SDLCALL SDL_MemoryBarrierReleaseFunction(void);
 extern DECLSPEC void SDLCALL SDL_MemoryBarrierAcquireFunction(void);
 
-#if defined(__GNUC__) && (defined(__powerpc__) || defined(__ppc__))
+#if defined(__GNUC__) && (defined(__powerpc__) || defined(__ppc__) || defined(__ppc64__))
 #define SDL_MemoryBarrierRelease()   __asm__ __volatile__ ("lwsync" : : : "memory")
 #define SDL_MemoryBarrierAcquire()   __asm__ __volatile__ ("lwsync" : : : "memory")
 #elif defined(__GNUC__) && defined(__aarch64__)
