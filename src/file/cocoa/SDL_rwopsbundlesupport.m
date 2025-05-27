@@ -35,7 +35,7 @@
 */
 FILE *SDL_OpenFPFromBundleOrFallback(const char *file, const char *mode)
 {
-    @autoreleasepool {
+        NSAutoreleasePool* autorelease_pool = [[NSAutoreleasePool alloc] init];
         FILE *fp = NULL;
         NSFileManager *file_manager;
         NSString *resource_path;
@@ -64,8 +64,8 @@ FILE *SDL_OpenFPFromBundleOrFallback(const char *file, const char *mode)
             fp = fopen(file, mode);
         }
 
+        [autorelease_pool drain];
         return fp;
-    }
 }
 
 #endif /* __APPLE__ */
