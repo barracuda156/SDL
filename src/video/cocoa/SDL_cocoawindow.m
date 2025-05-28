@@ -22,10 +22,6 @@
 
 #if SDL_VIDEO_DRIVER_COCOA
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
-# error SDL for Mac OS X must be built with a 10.7 SDK or above.
-#endif /* MAC_OS_X_VERSION_MAX_ALLOWED < 1070 */
-
 #include "SDL_syswm.h"
 #include "SDL_timer.h"  /* For SDL_GetTicks() */
 #include "SDL_hints.h"
@@ -100,7 +96,14 @@ ScheduleContextUpdates(SDL_WindowData *data)
     NSOpenGLContext *currentContext = [NSOpenGLContext currentContext];
     NSMutableArray *contexts = data->nscontexts;
     @synchronized (contexts) {
+#if defined(MAC_OS_X_VERSION_10_5)
         for (SDLOpenGLContext *context in contexts) {
+#else
+        /* old way to iterate */
+        int i;
+        for (i = 0; i < [contexts count]; i++) {
+            SDLOpenGLContext *context = [contexts objectAtIndex:i];
+#endif
             if (context == currentContext) {
                 [context update];
             } else {
@@ -190,10 +193,12 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
         [center addObserver:self selector:@selector(windowDidDeminiaturize:) name:NSWindowDidDeminiaturizeNotification object:window];
         [center addObserver:self selector:@selector(windowDidBecomeKey:) name:NSWindowDidBecomeKeyNotification object:window];
         [center addObserver:self selector:@selector(windowDidResignKey:) name:NSWindowDidResignKeyNotification object:window];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
         [center addObserver:self selector:@selector(windowWillEnterFullScreen:) name:NSWindowWillEnterFullScreenNotification object:window];
         [center addObserver:self selector:@selector(windowDidEnterFullScreen:) name:NSWindowDidEnterFullScreenNotification object:window];
         [center addObserver:self selector:@selector(windowWillExitFullScreen:) name:NSWindowWillExitFullScreenNotification object:window];
         [center addObserver:self selector:@selector(windowDidExitFullScreen:) name:NSWindowDidExitFullScreenNotification object:window];
+#endif
     } else {
         [window setDelegate:self];
     }
@@ -212,9 +217,11 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
 
     [view setNextResponder:self];
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
     if ([view respondsToSelector:@selector(setAcceptsTouchEvents:)]) {
         [view setAcceptsTouchEvents:YES];
     }
+#endif
 }
 
 - (void)observeValueForKeyPath:(NSString *)keyPath
@@ -282,7 +289,9 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
     inFullscreenTransition = YES;
 
     /* you need to be FullScreenPrimary, or toggleFullScreen doesn't work. Unset it again in windowDidExitFullScreen. */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     [nswindow setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
+#endif
     [nswindow performSelectorOnMainThread: @selector(toggleFullScreen:) withObject:nswindow waitUntilDone:NO];
     return YES;
 }
@@ -319,10 +328,12 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
         [center removeObserver:self name:NSWindowDidDeminiaturizeNotification object:window];
         [center removeObserver:self name:NSWindowDidBecomeKeyNotification object:window];
         [center removeObserver:self name:NSWindowDidResignKeyNotification object:window];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
         [center removeObserver:self name:NSWindowWillEnterFullScreenNotification object:window];
         [center removeObserver:self name:NSWindowDidEnterFullScreenNotification object:window];
         [center removeObserver:self name:NSWindowWillExitFullScreenNotification object:window];
         [center removeObserver:self name:NSWindowDidExitFullScreenNotification object:window];
+#endif
     } else {
         [window setDelegate:nil];
     }
@@ -346,8 +357,14 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
        !!! FIXME:   http://bugzilla.libsdl.org/show_bug.cgi?id=1825
     */
     windows = [NSApp orderedWindows];
-    for (NSWindow *win in windows)
-    {
+#if defined(MAC_OS_X_VERSION_10_5)
+    for (NSWindow *win in windows) {
+#else
+    /* old way to iterate */
+    int i;
+    for (i = 0; i < [windows count]; i++) {
+        NSWindow *win = [windows objectAtIndex:i];
+#endif
         if (win == window) {
             continue;
         }
@@ -597,12 +614,14 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
         [nswindow miniaturize:nil];
     } else {
         /* Adjust the fullscreen toggle button and readd menu now that we're here. */
+#if MAC_OS_X_VERSION_MIN_REQUIRED > 1070
         if (window->flags & SDL_WINDOW_RESIZABLE) {
             /* resizable windows are Spaces-friendly: they get the "go fullscreen" toggle button on their titlebar. */
             [nswindow setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
         } else {
             [nswindow setCollectionBehavior:NSWindowCollectionBehaviorManaged];
         }
+#endif
         [NSMenu setMenuBarVisible:YES];
 
         pendingWindowOperation = PENDING_OPERATION_NONE;
@@ -620,6 +639,7 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
     }
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
 -(NSApplicationPresentationOptions)window:(NSWindow *)window willUseFullScreenPresentationOptions:(NSApplicationPresentationOptions)proposedOptions
 {
     if ((_data->window->flags & SDL_WINDOW_FULLSCREEN_DESKTOP) == SDL_WINDOW_FULLSCREEN_DESKTOP) {
@@ -628,6 +648,7 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
         return proposedOptions;
     }
 }
+#endif
 
 
 /* We'll respond to key events by doing nothing so we don't beep.
@@ -662,7 +683,7 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
     switch ([theEvent buttonNumber]) {
     case 0:
         if (([theEvent modifierFlags] & NSControlKeyMask) &&
-		    GetHintCtrlClickEmulateRightClick()) {
+            GetHintCtrlClickEmulateRightClick()) {
             wasCtrlLeft = YES;
             button = SDL_BUTTON_RIGHT;
         } else {
@@ -822,6 +843,7 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
     [self handleTouches:COCOA_TOUCH_CANCELLED withEvent:theEvent];
 }
 
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
 - (void)handleTouches:(cocoaTouchType)type withEvent:(NSEvent *)event
 {
     NSSet *touches = 0;
@@ -847,8 +869,10 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
     touch = (NSTouch*)[enumerator nextObject];
     while (touch) {
         const SDL_TouchID touchId = (SDL_TouchID)(intptr_t)[touch device];
+        SDL_TouchDeviceType devtype = SDL_TOUCH_DEVICE_INDIRECT_ABSOLUTE;
+        SDL_Window *window = NULL;
         if (!SDL_GetTouch(touchId)) {
-            if (SDL_AddTouch(touchId, "") < 0) {
+            if (SDL_AddTouch(touchId, devtype, "") < 0) {
                 return;
             }
         }
@@ -861,20 +885,21 @@ SetWindowStyle(SDL_Window * window, unsigned int style)
 
         switch (type) {
         case COCOA_TOUCH_DOWN:
-            SDL_SendTouch(touchId, fingerId, SDL_TRUE, x, y, 1.0f);
+            SDL_SendTouch(touchId, fingerId, window, SDL_TRUE, x, y, 1.0f);
             break;
         case COCOA_TOUCH_UP:
         case COCOA_TOUCH_CANCELLED:
-            SDL_SendTouch(touchId, fingerId, SDL_FALSE, x, y, 1.0f);
+            SDL_SendTouch(touchId, fingerId, window, SDL_FALSE, x, y, 1.0f);
             break;
         case COCOA_TOUCH_MOVE:
-            SDL_SendTouchMotion(touchId, fingerId, x, y, 1.0f);
+            SDL_SendTouchMotion(touchId, fingerId, window, x, y, 1.0f);
             break;
         }
 
         touch = (NSTouch*)[enumerator nextObject];
     }
 }
+#endif
 
 @end
 
@@ -1040,6 +1065,7 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
     [nswindow setBackgroundColor:[NSColor blackColor]];
 
     if (videodata->allow_spaces) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
         SDL_assert(videodata->osversion >= 0x1070);
         SDL_assert([nswindow respondsToSelector:@selector(toggleFullScreen:)]);
         /* we put FULLSCREEN_DESKTOP windows in their own Space, without a toggle button or menubar, later */
@@ -1047,6 +1073,7 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
             /* resizable windows are Spaces-friendly: they get the "go fullscreen" toggle button on their titlebar. */
             [nswindow setCollectionBehavior:NSWindowCollectionBehaviorFullScreenPrimary];
         }
+#endif
     }
 
     /* Create a default view for this window */
@@ -1055,7 +1082,9 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
 
     if (window->flags & SDL_WINDOW_ALLOW_HIGHDPI) {
         if ([contentView respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
             [contentView setWantsBestResolutionOpenGLSurface:YES];
+#endif
         }
     }
 
@@ -1490,7 +1519,14 @@ Cocoa_DestroyWindow(_THIS, SDL_Window * window)
         }
 
         NSArray *contexts = [[data->nscontexts copy] autorelease];
+#if defined(MAC_OS_X_VERSION_10_5)
         for (SDLOpenGLContext *context in contexts) {
+#else
+        /* old way to iterate */
+        int i;
+        for (i = 0; i < [contexts count]; i++) {
+            SDLOpenGLContext *context = [contexts objectAtIndex:i];
+#endif
             /* Calling setWindow:NULL causes the context to remove itself from the context list. */            
             [context setWindow:NULL];
         }

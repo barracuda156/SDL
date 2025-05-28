@@ -35,7 +35,11 @@ Cocoa_CreateShaper(SDL_Window* window) {
     [windata->nswindow setOpaque:NO];
 
     if ([windata->nswindow respondsToSelector:@selector(setStyleMask:)]) {
+/* This actually should work across the board, see:
+    https://developer.apple.com/documentation/appkit/nsborderlesswindowmask */
+#if defined(MAC_OS_X_VERSION_10_5)
         [windata->nswindow setStyleMask:NSBorderlessWindowMask];
+#endif
     }
 
     SDL_WindowShaper* result = result = malloc(sizeof(SDL_WindowShaper));

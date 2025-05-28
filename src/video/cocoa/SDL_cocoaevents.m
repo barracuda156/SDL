@@ -126,7 +126,10 @@
 
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
 {
+    /* FIXME: original code:
     return (BOOL)SDL_SendDropFile([filename UTF8String]);
+     */
+    return false; // LAULAND
 }
 @end
 

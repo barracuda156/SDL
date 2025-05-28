@@ -33,6 +33,7 @@
 #include "SDL_endian.h"
 #include "SDL_cocoavideo.h"
 #include "SDL_cocoashape.h"
+#include "SDL_cocoamessagebox.h"
 #include "SDL_assert.h"
 
 /* Initialization/Query functions */
@@ -41,11 +42,13 @@ static void Cocoa_VideoQuit(_THIS);
 
 /* Cocoa driver bootstrap functions */
 
+/*
 static int
 Cocoa_Available(void)
 {
     return (1);
 }
+*/
 
 static void
 Cocoa_DeleteDevice(SDL_VideoDevice * device)
@@ -55,7 +58,7 @@ Cocoa_DeleteDevice(SDL_VideoDevice * device)
 }
 
 static SDL_VideoDevice *
-Cocoa_CreateDevice(int devindex)
+Cocoa_CreateDevice(void/*int devindex*/)
 {
     SDL_VideoDevice *device;
     SDL_VideoData *data;
@@ -87,8 +90,8 @@ Cocoa_CreateDevice(int devindex)
     device->SetDisplayMode = Cocoa_SetDisplayMode;
     device->PumpEvents = Cocoa_PumpEvents;
 
-    device->CreateWindow = Cocoa_CreateWindow;
-    device->CreateWindowFrom = Cocoa_CreateWindowFrom;
+    device->CreateSDLWindow = Cocoa_CreateWindow;
+    device->CreateSDLWindowFrom = Cocoa_CreateWindowFrom;
     device->SetWindowTitle = Cocoa_SetWindowTitle;
     device->SetWindowIcon = Cocoa_SetWindowIcon;
     device->SetWindowPosition = Cocoa_SetWindowPosition;
@@ -105,7 +108,7 @@ Cocoa_CreateDevice(int devindex)
     device->SetWindowFullscreen = Cocoa_SetWindowFullscreen;
     device->SetWindowGammaRamp = Cocoa_SetWindowGammaRamp;
     device->GetWindowGammaRamp = Cocoa_GetWindowGammaRamp;
-    device->SetWindowGrab = Cocoa_SetWindowGrab;
+    device->SetWindowMouseGrab = Cocoa_SetWindowGrab;
     device->DestroyWindow = Cocoa_DestroyWindow;
     device->GetWindowWMInfo = Cocoa_GetWindowWMInfo;
 
@@ -141,7 +144,7 @@ Cocoa_CreateDevice(int devindex)
 
 VideoBootStrap COCOA_bootstrap = {
     "cocoa", "SDL Cocoa video driver",
-    Cocoa_Available, Cocoa_CreateDevice
+    Cocoa_CreateDevice, Cocoa_ShowMessageBox
 };
 
 

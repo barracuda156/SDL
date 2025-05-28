@@ -347,9 +347,11 @@ Cocoa_GL_GetDrawableSize(_THIS, SDL_Window * window, int * w, int * h)
 
     /* This gives us the correct viewport for a Retina-enabled view, only
      * supported on 10.7+. */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
     if ([contentView respondsToSelector:@selector(convertRectToBacking:)]) {
         viewport = [contentView convertRectToBacking:viewport];
     }
+#endif
 
     if (w) {
         *w = viewport.size.width;
@@ -365,7 +367,7 @@ Cocoa_GL_SetSwapInterval(_THIS, int interval)
 {
     NSAutoreleasePool *pool;
     NSOpenGLContext *nscontext;
-    GLint value;
+    long value;
     int status;
 
     if (interval < 0) {  /* no extension for this on Mac OS X at the moment. */
@@ -392,7 +394,7 @@ Cocoa_GL_GetSwapInterval(_THIS)
 {
     NSAutoreleasePool *pool;
     NSOpenGLContext *nscontext;
-    GLint value;
+    long value;
     int status = 0;
 
     pool = [[NSAutoreleasePool alloc] init];
@@ -407,7 +409,7 @@ Cocoa_GL_GetSwapInterval(_THIS)
     return status;
 }
 
-void
+int
 Cocoa_GL_SwapWindow(_THIS, SDL_Window * window)
 {
     NSAutoreleasePool *pool;
@@ -419,6 +421,7 @@ Cocoa_GL_SwapWindow(_THIS, SDL_Window * window)
     [nscontext updateIfNeeded];
 
     [pool release];
+    return 0;
 }
 
 void

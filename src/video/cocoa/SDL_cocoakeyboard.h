@@ -29,7 +29,7 @@ extern void Cocoa_QuitKeyboard(_THIS);
 
 extern void Cocoa_StartTextInput(_THIS);
 extern void Cocoa_StopTextInput(_THIS);
-extern void Cocoa_SetTextInputRect(_THIS, SDL_Rect *rect);
+extern void Cocoa_SetTextInputRect(_THIS, const SDL_Rect *rect);
 
 #endif /* _SDL_cocoakeyboard_h */
 
