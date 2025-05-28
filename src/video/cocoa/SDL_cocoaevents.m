@@ -126,7 +126,8 @@
 
 - (BOOL)application:(NSApplication *)theApplication openFile:(NSString *)filename
 {
-    return (BOOL)SDL_SendDropFile([filename UTF8String]);
+    //return (BOOL)SDL_SendDropFile([filename UTF8String]);
+    return false; // LAULAND
 }
 @end
 

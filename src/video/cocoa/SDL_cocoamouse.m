@@ -151,7 +151,7 @@ Cocoa_CreateSystemCursor(SDL_SystemCursor id)
         nscursor = [NSCursor closedHandCursor];
         break;
     case SDL_SYSTEM_CURSOR_NO:
-        nscursor = [NSCursor operationNotAllowedCursor];
+        //nscursor = [NSCursor operationNotAllowedCursor];
         break;
     case SDL_SYSTEM_CURSOR_HAND:
         nscursor = [NSCursor pointingHandCursor];
@@ -372,7 +372,7 @@ Cocoa_HandleMouseWheel(SDL_Window *window, NSEvent *event)
     } else if (y < 0) {
         y -= 0.9f;
     }
-    SDL_SendMouseWheel(window, mouse->mouseID, (int)x, (int)y);
+    SDL_SendMouseWheel(window, mouse->mouseID, (int)x, (int)y,SDL_MOUSEWHEEL_NORMAL);
 }
 
 void
