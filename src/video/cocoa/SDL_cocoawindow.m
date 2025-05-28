@@ -22,12 +22,6 @@
 
 #if SDL_VIDEO_DRIVER_COCOA
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
-#if 0
-# error SDL for Mac OS X must be built with a 10.7 SDK or above.
-#endif
-#endif /* MAC_OS_X_VERSION_MAX_ALLOWED < 1070 */
-
 #include "SDL_syswm.h"
 #include "SDL_timer.h"  /* For SDL_GetTicks() */
 #include "SDL_hints.h"
@@ -1086,7 +1080,9 @@ Cocoa_CreateWindow(_THIS, SDL_Window * window)
 
     if (window->flags & SDL_WINDOW_ALLOW_HIGHDPI) {
         if ([contentView respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
-            //[contentView setWantsBestResolutionOpenGLSurface:YES];
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= 1070
+            [contentView setWantsBestResolutionOpenGLSurface:YES];
+#endif
         }
     }
 
